@@ -1,0 +1,25 @@
+{
+  "name": "quorum",
+  "version": "0.0.1",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "login": "devvit login",
+    "playtest": "devvit playtest",
+    "upload": "devvit upload",
+    "publish": "devvit publish",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@devvit/public-api": "0.12.24",
+    "devvit": "0.12.24"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "5.8.3",
+    "vitest": "^2.1.5"
+  }
+}
