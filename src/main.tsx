@@ -15,7 +15,7 @@ import {
 Devvit.configure({
   redditAPI: true,
   redis: true,
-  realtime: false,
+  realtime: true,
   http: false,
 });
 

@@ -66,11 +66,48 @@ type QuorumPostState =
 
 /* ------------------------------- dispatcher ------------------------------ */
 
+type RealtimeMsg =
+  | { kind: "vote" }
+  | { kind: "presence"; name: string };
+
+const PRESENCE_TTL_MS = 15_000;
+
 export const QuorumPost: Devvit.CustomPostComponent = (context) => {
   const [state, setState] = useState<QuorumPostState>(async () =>
     loadState(context),
   );
   const [selected, setSelected] = useState<VoteChoice | null>(null);
+  const [viewers, setViewers] = useState<Record<string, number>>({});
+
+  const channelName = `q_${(context.postId ?? "none").replace(/[^a-zA-Z0-9_]/g, "_")}`;
+  const myName =
+    state.kind === "conclave" ? state.room.currentMod : "viewer";
+
+  const channel = context.useChannel<RealtimeMsg>({
+    name: channelName,
+    onMessage: (msg) => {
+      if (msg.kind === "presence") {
+        const name = msg.name;
+        setViewers((prev) => ({ ...prev, [name]: Date.now() }));
+      } else {
+        void (async () => setState(await loadState(context)))();
+      }
+    },
+  });
+  channel.subscribe();
+
+  const heartbeat = context.useInterval(() => {
+    void channel.send({ kind: "presence", name: myName });
+    setViewers((prev) => {
+      const now = Date.now();
+      const next: Record<string, number> = {};
+      for (const [n, t] of Object.entries(prev)) {
+        if (now - t < PRESENCE_TTL_MS) next[n] = t;
+      }
+      return next;
+    });
+  }, 5000);
+  heartbeat.start();
 
   const reasonForm = context.useForm(
     {
@@ -90,14 +127,21 @@ export const QuorumPost: Devvit.CustomPostComponent = (context) => {
         setSelected(null),
       );
       setState(await loadState(context));
+      try {
+        await context.realtime.send(channelName, { kind: "vote" });
+      } catch {
+        // realtime is best-effort; the voter's own view already updated
+      }
     },
   );
 
   if (state.kind === "conclave") {
+    const liveViewers = distinctViewers(viewers, myName);
     return (
       <ConclaveView
         room={state.room}
         selected={selected}
+        viewerCount={liveViewers}
         onSelect={(c) => setSelected(c)}
         onConfirm={() => context.ui.showForm(reasonForm)}
       />
@@ -109,11 +153,24 @@ export const QuorumPost: Devvit.CustomPostComponent = (context) => {
   return <UnknownView />;
 };
 
+function distinctViewers(
+  viewers: Record<string, number>,
+  myName: string,
+): number {
+  const now = Date.now();
+  const set = new Set<string>([myName]);
+  for (const [n, t] of Object.entries(viewers)) {
+    if (now - t < PRESENCE_TTL_MS) set.add(n);
+  }
+  return set.size;
+}
+
 /* ------------------------------ conclave view ----------------------------- */
 
 function ConclaveView(props: {
   room: ConclaveRoomData;
   selected: VoteChoice | null;
+  viewerCount: number;
   onSelect: (c: VoteChoice) => void;
   onConfirm: () => void;
 }): JSX.Element {
@@ -151,6 +208,25 @@ function ConclaveView(props: {
               {conclave.targetKind} · u/{conclave.authorName}
             </text>
           </vstack>
+          {!closed && props.viewerCount > 1 ? (
+            <hstack
+              padding="xsmall"
+              cornerRadius="full"
+              backgroundColor={C.cardAlt}
+              gap="small"
+              alignment="middle center"
+            >
+              <vstack
+                width="8px"
+                height="8px"
+                cornerRadius="full"
+                backgroundColor={C.keep}
+              />
+              <text size="xsmall" color={C.dim}>
+                {props.viewerCount} reviewing
+              </text>
+            </hstack>
+          ) : null}
           <StatusPill closed={closed} resolution={conclave.resolution} />
         </hstack>
 
