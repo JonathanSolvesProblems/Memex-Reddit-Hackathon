@@ -1,0 +1,182 @@
+/**
+ * In-memory fakes for the slice of Devvit's Redis and Reddit clients that
+ * Quorum actually uses. Lets us run the real vote/resolve/precedent pipeline
+ * in unit tests without the platform.
+ */
+
+type ZEntry = { member: string; score: number };
+
+export class FakeRedis {
+  private strings = new Map<string, string>();
+  private hashes = new Map<string, Map<string, string>>();
+  private zsets = new Map<string, Map<string, number>>();
+
+  async get(key: string): Promise<string | undefined> {
+    return this.strings.get(key);
+  }
+  async set(key: string, value: string): Promise<void> {
+    this.strings.set(key, value);
+  }
+  async del(...keys: string[]): Promise<void> {
+    for (const k of keys) this.strings.delete(k);
+  }
+  async exists(key: string): Promise<number> {
+    return this.strings.has(key) ? 1 : 0;
+  }
+  async incrBy(key: string, by: number): Promise<number> {
+    const cur = parseInt(this.strings.get(key) ?? "0", 10) + by;
+    this.strings.set(key, String(cur));
+    return cur;
+  }
+
+  async hSet(key: string, obj: Record<string, string>): Promise<void> {
+    const h = this.hashes.get(key) ?? new Map<string, string>();
+    for (const [k, v] of Object.entries(obj)) h.set(k, v);
+    this.hashes.set(key, h);
+  }
+  async hGet(key: string, field: string): Promise<string | undefined> {
+    return this.hashes.get(key)?.get(field);
+  }
+  async hGetAll(key: string): Promise<Record<string, string>> {
+    const h = this.hashes.get(key);
+    if (!h) return {};
+    return Object.fromEntries(h.entries());
+  }
+  async hDel(key: string, fields: string[]): Promise<void> {
+    const h = this.hashes.get(key);
+    if (!h) return;
+    for (const f of fields) h.delete(f);
+  }
+
+  async zAdd(key: string, ...entries: ZEntry[]): Promise<number> {
+    const z = this.zsets.get(key) ?? new Map<string, number>();
+    let added = 0;
+    for (const e of entries) {
+      if (!z.has(e.member)) added++;
+      z.set(e.member, e.score);
+    }
+    this.zsets.set(key, z);
+    return added;
+  }
+  async zRem(key: string, members: string[]): Promise<number> {
+    const z = this.zsets.get(key);
+    if (!z) return 0;
+    let removed = 0;
+    for (const m of members) if (z.delete(m)) removed++;
+    return removed;
+  }
+  async zScore(key: string, member: string): Promise<number | undefined> {
+    return this.zsets.get(key)?.get(member);
+  }
+  async zRange(
+    key: string,
+    min: number,
+    max: number,
+    _opts?: { by?: string },
+  ): Promise<ZEntry[]> {
+    const z = this.zsets.get(key);
+    if (!z) return [];
+    return [...z.entries()]
+      .map(([member, score]) => ({ member, score }))
+      .filter((e) => e.score >= min && e.score <= max)
+      .sort((a, b) => a.score - b.score);
+  }
+  async zRemRangeByScore(
+    key: string,
+    min: number,
+    max: number,
+  ): Promise<number> {
+    const z = this.zsets.get(key);
+    if (!z) return 0;
+    let removed = 0;
+    for (const [m, s] of [...z.entries()]) {
+      if (s >= min && s <= max) {
+        z.delete(m);
+        removed++;
+      }
+    }
+    return removed;
+  }
+}
+
+export type RecordedActions = {
+  removed: { id: string; asSpam: boolean }[];
+  approved: string[];
+  locked: string[];
+  modmails: { subject: string; bodyMarkdown: string }[];
+};
+
+export class FakeReddit {
+  actions: RecordedActions = {
+    removed: [],
+    approved: [],
+    locked: [],
+    modmails: [],
+  };
+
+  private makeThing(id: string) {
+    return {
+      id,
+      remove: async (asSpam: boolean) => {
+        this.actions.removed.push({ id, asSpam });
+      },
+      approve: async () => {
+        this.actions.approved.push(id);
+      },
+      lock: async () => {
+        this.actions.locked.push(id);
+      },
+    };
+  }
+
+  async getPostById(id: string) {
+    return this.makeThing(id);
+  }
+  async getCommentById(id: string) {
+    return this.makeThing(id);
+  }
+  async getSubredditByName(name: string) {
+    return { id: "t5_fake", name };
+  }
+  async getCurrentSubredditName() {
+    return "JonathanSolvesProblem";
+  }
+  modMail = {
+    createModInboxConversation: async (args: {
+      subject: string;
+      bodyMarkdown: string;
+      subredditId: string;
+    }) => {
+      this.actions.modmails.push({
+        subject: args.subject,
+        bodyMarkdown: args.bodyMarkdown,
+      });
+      return { conversationId: "fake" };
+    },
+  };
+}
+
+export class FakeScheduler {
+  jobs: { name: string; data?: unknown }[] = [];
+  async runJob(job: { name: string; data?: unknown }): Promise<string> {
+    this.jobs.push({ name: job.name, data: job.data });
+    return "job_fake";
+  }
+  async listJobs() {
+    return [] as { id: string }[];
+  }
+  async cancelJob(_id: string): Promise<void> {}
+}
+
+export function fakeContext() {
+  const redis = new FakeRedis();
+  const reddit = new FakeReddit();
+  const scheduler = new FakeScheduler();
+  // The pipeline functions only touch redis / reddit / scheduler.
+  return {
+    redis,
+    reddit,
+    scheduler,
+    context: { redis, reddit, scheduler } as never,
+  };
+}
