@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "quorum",
+  "name": "quorum-mod",
   "blocks": {
     "entry": "src/main.tsx",
     "triggers": [
@@ -10,5 +10,8 @@
       "onAppInstall",
       "onAppUpgrade"
     ]
+  },
+  "dev": {
+    "subreddit": "quorum_mod_dev"
   }
 }
