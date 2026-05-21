@@ -70,6 +70,14 @@ export type PrecedentMatch = {
   similarity: number;
 };
 
+export type DecisionAnalysis = {
+  matches: PrecedentMatch[];
+  consideredCount: number;
+  counts: Record<VoteChoice, number>;
+  dominant?: VoteChoice;
+  consistencyPct: number;
+};
+
 export type CalibrationRecord = {
   modName: string;
   conclaveId: string;

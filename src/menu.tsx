@@ -1,7 +1,7 @@
 import { Devvit } from "@devvit/public-api";
 import type { Context, MenuItemOnPressEvent } from "@devvit/public-api";
 import { spawnConclave } from "./conclave/spawn.js";
-import { findPrecedents, summarizeMatches } from "./precedent/retrieve.js";
+import { analyzeDecision, formatDecisionDNA } from "./precedent/retrieve.js";
 import {
   isShadowMod,
   listShadowMods,
@@ -128,9 +128,21 @@ function registerSendToConclave(location: "post" | "comment"): void {
   });
 }
 
-function registerShowPrecedents(location: "post" | "comment"): void {
+const decisionDnaForm = Devvit.createForm(
+  (data) => ({
+    title: "🧬 Decision DNA",
+    description: (data.summary as string | undefined) ?? "No data.",
+    acceptLabel: "Close",
+    fields: [],
+  }),
+  async () => {
+    // read-only modal; nothing to submit
+  },
+);
+
+function registerDecisionDNA(location: "post" | "comment"): void {
   Devvit.addMenuItem({
-    label: "Quorum: Show similar past decisions",
+    label: "Quorum: Decision DNA",
     location,
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
@@ -148,24 +160,14 @@ function registerShowPrecedents(location: "post" | "comment"): void {
         snippet = comment.body;
       }
       const settings = await loadSettings(context);
-      const matches = await findPrecedents(context, snippet, {
+      const analysis = await analyzeDecision(context, snippet, {
         limit: settings.precedentLimit,
         minSimilarity: settings.precedentMinSimilarity,
         topK: 3,
       });
-      const body = summarizeMatches(matches);
-
-      const sub = await context.reddit.getCurrentSubreddit();
-      try {
-        await context.reddit.modMail.createModInboxConversation({
-          subredditId: sub.id,
-          subject: `[Quorum] Precedents for ${location}`,
-          bodyMarkdown: body,
-        });
-        context.ui.showToast("Precedents posted to modmail.");
-      } catch {
-        context.ui.showToast("Could not post to modmail.");
-      }
+      context.ui.showForm(decisionDnaForm, {
+        summary: formatDecisionDNA(analysis),
+      });
     },
   });
 }
@@ -269,8 +271,8 @@ function registerOpenRulebook(): void {
 export function registerMenu(): void {
   registerSendToConclave("post");
   registerSendToConclave("comment");
-  registerShowPrecedents("post");
-  registerShowPrecedents("comment");
+  registerDecisionDNA("post");
+  registerDecisionDNA("comment");
   registerToggleShadow();
   registerOpenRulebook();
 }

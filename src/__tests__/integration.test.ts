@@ -7,7 +7,13 @@ import {
   setShadowMod,
 } from "../redis.js";
 import { submitVote, closeExpired } from "../conclave/vote.js";
-import { recordDecision, findPrecedents } from "../precedent/retrieve.js";
+import {
+  recordDecision,
+  findPrecedents,
+  analyzeDecision,
+  formatDecisionDNA,
+} from "../precedent/retrieve.js";
+import type { VoteChoice } from "../types.js";
 import type { Conclave } from "../types.js";
 import type { QuorumSettings } from "../settings.js";
 
@@ -159,6 +165,71 @@ describe("precedent recording + surfacing", () => {
       { limit: 500, minSimilarity: 25, topK: 3 },
     );
     expect(matches).toHaveLength(0);
+  });
+});
+
+describe("Decision DNA (analyzeDecision)", () => {
+  async function seed(h: ReturnType<typeof fakeContext>) {
+    const base =
+      "user posted an affiliate link to their own store promo discount code";
+    const actions: VoteChoice[] = ["remove", "remove", "remove", "keep"];
+    let i = 0;
+    for (const action of actions) {
+      await recordDecision(h.redis, {
+        id: `seed_${i}`,
+        subredditName: "s",
+        targetKind: "post",
+        contentSnippet: `${base} number ${i}`,
+        action,
+        modName: "mod1",
+        reason: action === "keep" ? "regular contributor" : "self-promo",
+        permalink: "/x",
+        decidedAt: Date.now() - i * 1000,
+      });
+      i++;
+    }
+  }
+
+  it("reports dominant outcome and consistency percentage", async () => {
+    const h = fakeContext();
+    await seed(h);
+    const a = await analyzeDecision(
+      h.context,
+      "member dropped an affiliate link with a store discount promo code",
+      { limit: 500, minSimilarity: 20, topK: 3 },
+    );
+    expect(a.consideredCount).toBe(4);
+    expect(a.dominant).toBe("remove");
+    expect(a.counts.remove).toBe(3);
+    expect(a.counts.keep).toBe(1);
+    expect(a.consistencyPct).toBe(75);
+  });
+
+  it("formats a readable Decision DNA card", async () => {
+    const h = fakeContext();
+    await seed(h);
+    const a = await analyzeDecision(
+      h.context,
+      "member dropped an affiliate link with a store discount promo code",
+      { limit: 500, minSimilarity: 20, topK: 3 },
+    );
+    const card = formatDecisionDNA(a);
+    expect(card).toContain("REMOVE");
+    expect(card).toContain("75%");
+    expect(card).toContain("similar");
+  });
+
+  it("returns zero state when nothing matches", async () => {
+    const h = fakeContext();
+    await seed(h);
+    const a = await analyzeDecision(
+      h.context,
+      "what is the best sourdough bread recipe for beginners",
+      { limit: 500, minSimilarity: 30, topK: 3 },
+    );
+    expect(a.consideredCount).toBe(0);
+    expect(a.dominant).toBeUndefined();
+    expect(formatDecisionDNA(a)).toContain("No similar past decisions");
   });
 });
 

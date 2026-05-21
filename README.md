@@ -1,64 +1,86 @@
 # Quorum
 
-The team-decision layer for Reddit moderation.
+**The only Reddit mod tool with institutional memory.** Quorum remembers how
+your team decided before, surfaces it at the moment you decide again, and keeps
+new mods consistent with the team's actual standards.
 
-Reddit's modqueue treats every mod as a lone agent. Quorum treats the mod team
-as a single distributed brain.
+Most mod tools make one mod faster at clearing a queue. Quorum makes the *team*
+decide consistently over time — and stops that knowledge from walking out the
+door when a veteran mod leaves.
 
-## What it does
+## The three layers
 
-Three layers, one Devvit app:
+### 1. Decision DNA (the headline)
+On **any** post or comment, one click shows how your team has historically
+ruled on similar content: the dominant outcome, a **consistency score**, and
+the closest past decisions. Inside a decision room it renders as a live banner
+("Team usually: REMOVE · 80% consistent · 5 similar decisions on record").
 
-1. **Conclave** — borderline queue items become async, mod-only decision rooms.
-   Mods vote `Remove | Keep | Warn | Escalate`. After quorum or timeout, the
-   consensus action auto-executes for reversible actions. Bans never
-   auto-execute — they surface as recommendations for a human click (per the
-   2026 Reddit admin policy on ban bots).
+Low consistency is itself a signal — it flags genuinely borderline content that
+deserves a team vote rather than a lone call.
 
-2. **Precedent Engine** — every mod action is vectorized into a per-subreddit
-   index. New queue items surface the 3 most similar past decisions. A Living
-   Rulebook view shows the team's actual decision pattern, not just the
-   written rules.
+Built on **local trigram/token similarity** — no external API, no API key, no
+per-comment cost, no domain-approval bottleneck. It works the instant it's
+installed and scales from a 200-member sub to a 5M-member one.
 
-3. **Calibration Mode** — new mods cast shadow votes that don't count for
-   quorum but get logged. Weekly digest shows where they diverged from team
-   consensus, and why.
+### 2. Conclave (async team decisions)
+Borderline items become mod-only decision rooms. Mods vote
+`Remove | Keep | Warn | Escalate`; when quorum is reached, the consensus action
+auto-executes for reversible actions. **Bans never auto-execute** — they
+surface as a recommendation requiring a human click (per Reddit's 2026 admin
+policy on ban bots). Votes and quorum update **live** across every mod viewing
+the room, with a presence indicator showing who else is reviewing.
 
-## Why it's net-new
+### 3. Calibration (consistent onboarding)
+New mods cast **shadow votes** that are logged but don't count toward quorum. A
+weekly digest shows where they diverged from team consensus and why — so they
+absorb the team's standards instead of guessing for six months.
 
-No Devvit app today does async team voting on queue items. No Devvit app
-retrieves past-decision precedents. Both are firsts. The premise — that the
-bottleneck is decision legitimacy and team coherence, not reading speed — is
-sociological, not just tooling.
+## Why it's defensibly different
+
+The "shared mod workspace / coordination" space is crowded. Quorum's
+**institutional-memory layer is not**: no other tool surfaces *how your team
+decided on similar content* at decision time, scores decision consistency, or
+calibrates new mods against the team's real pattern. The voting + realtime is
+the delivery mechanism; the memory is the moat.
 
 ## Rule compliance
 
-- No auto-ban — bans require human click.
-- No ML training on Reddit data — embeddings via fixed off-the-shelf models.
-- Per-subreddit isolation — no cross-sub data sharing.
-- Mod-only data exposure — Conclave rooms are private to mods.
-- Clearly scoped permissions in `devvit.json`.
+- **No automated bans** — bans require a human click.
+- **No ML training on Reddit data** — similarity is fixed local computation.
+- **No external calls** — no API keys, no domain allow-listing, zero cost.
+- **Per-subreddit isolation** — no Global Redis, no cross-sub data sharing.
+- **Mod-only data exposure** — Conclave rooms and Decision DNA are mods-only.
 
 ## Project layout
 
 ```
 src/
-  main.tsx                # entry, registers everything
+  main.tsx                # entry; registers post type, triggers, scheduler, menu
+  post.tsx                # the custom post: Conclave room + Living Rulebook (one dispatcher)
+  menu.tsx                # Send to Conclave, Decision DNA, shadow toggle, open Rulebook
   settings.ts             # mod-configurable settings
   types.ts                # shared types
-  redis/                  # all persistence: keys, votes, precedents, calibration
-  conclave/               # Layer 1: routing, room UI, vote/tally/execute
-  precedent/              # Layer 2: embed, retrieve, panel, Living Rulebook
-  calibration/            # Layer 3: shadow voting, weekly digest
-  triggers/               # event handlers wired in main.tsx
-  schedulers.ts           # scheduled job definitions
+  redis.ts                # persistence: conclaves, votes, precedents, calibration
+  conclave/               # routing, vote tally + consensus execution, room spawn
+  precedent/              # tokenize + similarity, analyzeDecision (Decision DNA), retrieval
+  calibration/            # weekly divergence digest
+  triggers.ts             # event handlers
+  __tests__/              # 27 tests: logic + full pipeline against in-memory fakes
 ```
 
 ## Development
 
 ```sh
 npm install
-npm run login         # one-time, devvit auth
-npm run playtest      # iterate against a test subreddit
+npm run login                       # one-time devvit auth
+npm run playtest <your-test-sub>    # iterate against a <200-member sub you mod
 npm run typecheck
+npm run test
 ```
+
+## Status
+
+Core verified live on Reddit infra and in 27 automated tests (vote → quorum →
+consensus execution → precedent recording → Decision DNA retrieval →
+calibration logging). Typecheck and tests green.

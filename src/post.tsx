@@ -2,6 +2,7 @@ import { Devvit, useState } from "@devvit/public-api";
 import type { Context, IconName } from "@devvit/public-api";
 import type {
   Conclave,
+  DecisionAnalysis,
   Precedent,
   PrecedentMatch,
   Vote,
@@ -16,7 +17,7 @@ import {
   recentPrecedentIds,
   tallyVotes,
 } from "./redis.js";
-import { findPrecedents } from "./precedent/retrieve.js";
+import { analyzeDecision } from "./precedent/retrieve.js";
 import { loadSettings } from "./settings.js";
 import { submitVote } from "./conclave/vote.js";
 
@@ -53,7 +54,7 @@ const VOTE_ORDER: VoteChoice[] = ["remove", "keep", "warn", "escalate"];
 type ConclaveRoomData = {
   conclave: Conclave;
   votes: Vote[];
-  precedents: PrecedentMatch[];
+  analysis: DecisionAnalysis;
   currentMod: string;
   isShadow: boolean;
   quorumSize: number;
@@ -283,20 +284,15 @@ function ConclaveView(props: {
           ) : null}
         </vstack>
 
-        {/* precedents */}
+        {/* precedents + decision DNA */}
         <vstack width="100%" gap="small">
           <text size="small" weight="bold" color={C.dim}>
-            SIMILAR PAST DECISIONS
+            DECISION DNA
           </text>
-          {room.precedents.length === 0 ? (
-            <text size="small" color={C.faint}>
-              None found in the team's recent record.
-            </text>
-          ) : (
-            room.precedents.map((m, i) => (
-              <PrecedentCard key={`p${i}`} match={m} />
-            ))
-          )}
+          <ConsistencyBanner analysis={room.analysis} />
+          {room.analysis.matches.map((m, i) => (
+            <PrecedentCard key={`p${i}`} match={m} />
+          ))}
         </vstack>
 
         {/* vote controls */}
@@ -403,6 +399,65 @@ function StatusPill(props: {
       <text size="xsmall" weight="bold" color="#ffffff">
         {label}
       </text>
+    </hstack>
+  );
+}
+
+function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
+  const { analysis } = props;
+  if (analysis.consideredCount === 0) {
+    return (
+      <hstack
+        width="100%"
+        padding="small"
+        cornerRadius="medium"
+        backgroundColor={C.card}
+        border="thin"
+        borderColor={C.line}
+        alignment="middle start"
+        gap="small"
+      >
+        <text size="small" color={C.faint} wrap>
+          No similar past decisions — this would set the precedent.
+        </text>
+      </hstack>
+    );
+  }
+  const dominant = analysis.dominant ?? "keep";
+  const meta = VOTE_META[dominant];
+  const low = analysis.consistencyPct < 60;
+  return (
+    <hstack
+      width="100%"
+      padding="small"
+      cornerRadius="medium"
+      backgroundColor={C.card}
+      border="thin"
+      borderColor={low ? C.warn : meta.color}
+      alignment="middle start"
+      gap="small"
+    >
+      <vstack
+        minWidth="52px"
+        padding="xsmall"
+        cornerRadius="small"
+        backgroundColor={meta.color}
+        alignment="middle center"
+      >
+        <text size="medium" weight="bold" color="#ffffff">
+          {analysis.consistencyPct}%
+        </text>
+      </vstack>
+      <vstack grow gap="none">
+        <text size="small" weight="bold" color={C.text}>
+          Team usually: {meta.label.toUpperCase()}
+        </text>
+        <text size="xsmall" color={C.faint} wrap>
+          {analysis.consideredCount} similar decision
+          {analysis.consideredCount === 1 ? "" : "s"} on record
+          {low ? " · low consistency — genuinely borderline" : ""}
+        </text>
+      </vstack>
     </hstack>
   );
 }
@@ -623,16 +678,12 @@ async function loadState(context: Context): Promise<QuorumPostState> {
     if (conclave) {
       const votes = await getVotes(context.redis, conclaveId);
       const settings = await loadSettings(context);
-      const precedents = await findPrecedents(
-        context,
-        conclave.contentSnippet,
-        {
-          limit: settings.precedentLimit,
-          minSimilarity: settings.precedentMinSimilarity,
-          topK: 3,
-          excludeTargetIds: [conclave.id],
-        },
-      );
+      const analysis = await analyzeDecision(context, conclave.contentSnippet, {
+        limit: settings.precedentLimit,
+        minSimilarity: settings.precedentMinSimilarity,
+        topK: 3,
+        excludeTargetIds: [conclave.id],
+      });
       const user = await context.reddit.getCurrentUser();
       const currentMod = user?.username ?? "unknown";
       const isShadow = user
@@ -643,7 +694,7 @@ async function loadState(context: Context): Promise<QuorumPostState> {
         room: {
           conclave,
           votes,
-          precedents,
+          analysis,
           currentMod,
           isShadow,
           quorumSize: settings.quorumSize,
