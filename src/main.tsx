@@ -1,8 +1,7 @@
 import { Devvit } from "@devvit/public-api";
 import { appSettings } from "./settings.js";
 import { registerMenu } from "./menu.js";
-import { ConclaveRoom } from "./conclave/room.js";
-import { RulebookPost } from "./precedent/rulebook.js";
+import { QuorumPost } from "./post.js";
 import { runWeeklyDigest } from "./calibration/digest.js";
 import {
   onAppInstallOrUpgrade,
@@ -23,17 +22,10 @@ Devvit.configure({
 Devvit.addSettings(appSettings);
 
 Devvit.addCustomPostType({
-  name: "Quorum Conclave",
-  description: "Mod-only async decision room",
+  name: "Quorum",
+  description: "Async mod decision rooms and the team's living rulebook",
   height: "tall",
-  render: ConclaveRoom,
-});
-
-Devvit.addCustomPostType({
-  name: "Quorum Living Rulebook",
-  description: "The team's actual decision pattern, drawn from past actions",
-  height: "tall",
-  render: RulebookPost,
+  render: QuorumPost,
 });
 
 Devvit.addTrigger({ event: "PostSubmit", onEvent: onPostSubmit });

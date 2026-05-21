@@ -8,6 +8,14 @@ import {
 } from "./redis.js";
 import { loadSettings } from "./settings.js";
 
+const PENDING_TTL_MS = 10 * 60 * 1000;
+
+async function pendingKey(context: Context): Promise<string> {
+  const userId =
+    context.userId ?? (await context.reddit.getCurrentUser())?.id ?? "anon";
+  return `pending-conclave:${userId}`;
+}
+
 const reasonForm = Devvit.createForm(
   {
     title: "Send to Conclave",
@@ -19,24 +27,19 @@ const reasonForm = Devvit.createForm(
         type: "string",
         helpText: "Surfaces in the Conclave room and in modmail.",
       },
-      {
-        name: "targetId",
-        label: "Target ID (do not edit)",
-        type: "string",
-        required: true,
-      },
-      {
-        name: "targetKind",
-        label: "Target kind (do not edit)",
-        type: "string",
-        required: true,
-      },
     ],
   },
   async (event, context) => {
     const reason = String(event.values.reason ?? "");
-    const targetId = String(event.values.targetId);
-    const targetKind = String(event.values.targetKind) as "post" | "comment";
+    const raw = await context.redis.get(await pendingKey(context));
+    if (!raw) {
+      context.ui.showToast("Selection expired — please try the menu again.");
+      return;
+    }
+    const { targetId, targetKind } = JSON.parse(raw) as {
+      targetId: string;
+      targetKind: "post" | "comment";
+    };
     await openConclaveFor(context, targetId, targetKind, reason);
   },
 );
@@ -47,49 +50,59 @@ async function openConclaveFor(
   targetKind: "post" | "comment",
   reason: string,
 ): Promise<void> {
-  const settings = await loadSettings(context);
-  const subredditName = await context.reddit.getCurrentSubredditName();
-  const user = await context.reddit.getCurrentUser();
-  const openedBy = user?.username ?? "unknown";
+  try {
+    const settings = await loadSettings(context);
+    const subredditName = await context.reddit.getCurrentSubredditName();
+    const user = await context.reddit.getCurrentUser();
+    const openedBy = user?.username ?? "unknown";
 
-  let authorName = "unknown";
-  let contentSnippet = "";
-  let permalink = "";
+    let authorName = "unknown";
+    let contentSnippet = "";
+    let permalink = "";
 
-  if (targetKind === "post") {
-    const post = await context.reddit.getPostById(targetId);
-    authorName = post.authorName;
-    contentSnippet = `${post.title}\n${(post as unknown as { body?: string }).body ?? ""}`;
-    permalink = post.permalink;
-  } else {
-    const comment = await context.reddit.getCommentById(targetId);
-    authorName = comment.authorName;
-    contentSnippet = comment.body;
-    permalink = comment.permalink;
-  }
+    if (targetKind === "post") {
+      const post = await context.reddit.getPostById(targetId);
+      authorName = post.authorName;
+      contentSnippet = `${post.title}\n${(post as unknown as { body?: string }).body ?? ""}`;
+      permalink = post.permalink;
+    } else {
+      const comment = await context.reddit.getCommentById(targetId);
+      authorName = comment.authorName;
+      contentSnippet = comment.body;
+      permalink = comment.permalink;
+    }
 
-  const result = await spawnConclave(
-    context,
-    {
-      subredditName,
-      targetKind,
-      targetId,
-      authorName,
-      contentSnippet,
-      permalink,
-      openedBy,
-      reason: reason || "manual route",
-    },
-    settings,
-  );
+    const result = await spawnConclave(
+      context,
+      {
+        subredditName,
+        targetKind,
+        targetId,
+        authorName,
+        contentSnippet,
+        permalink,
+        openedBy,
+        reason: reason || "manual route",
+      },
+      settings,
+    );
 
-  if (result.alreadyExisted) {
-    context.ui.showToast("A Conclave is already open for this item.");
-    return;
-  }
-  context.ui.showToast("Conclave opened. Notified team via modmail.");
-  if (result.conclavePostUrl) {
-    context.ui.navigateTo(result.conclavePostUrl);
+    if (result.alreadyExisted) {
+      context.ui.showToast("A Conclave already exists for this item — opening it.");
+      const existingPostId = result.conclave?.conclavePostId;
+      if (existingPostId) {
+        const existingPost = await context.reddit.getPostById(existingPostId);
+        context.ui.navigateTo(existingPost);
+      }
+      return;
+    }
+    context.ui.showToast("Conclave opened. Notified team via modmail.");
+    if (result.post) {
+      context.ui.navigateTo(result.post);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    context.ui.showToast(`Conclave failed: ${message.slice(0, 180)}`);
   }
 }
 
@@ -99,16 +112,17 @@ function registerSendToConclave(location: "post" | "comment"): void {
     location,
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
-      const targetId =
-        location === "post" ? event.targetId : event.targetId;
+      const targetId = event.targetId;
       if (!targetId) {
         context.ui.showToast("Could not determine target.");
         return;
       }
-      context.ui.showForm(reasonForm, {
-        targetId,
-        targetKind: location,
-      });
+      await context.redis.set(
+        await pendingKey(context),
+        JSON.stringify({ targetId, targetKind: location }),
+        { expiration: new Date(Date.now() + PENDING_TTL_MS) },
+      );
+      context.ui.showForm(reasonForm);
     },
   });
 }
@@ -216,7 +230,7 @@ function registerOpenRulebook(): void {
       });
       await context.redis.set(`rulebook-post:${post.id}`, "1");
       context.ui.showToast("Rulebook post created. Visit it to view.");
-      context.ui.navigateTo(post.permalink);
+      context.ui.navigateTo(post);
     },
   });
 }

@@ -1,5 +1,5 @@
 import { Devvit } from "@devvit/public-api";
-import type { JSONObject, TriggerContext } from "@devvit/public-api";
+import type { JSONObject, Post, TriggerContext } from "@devvit/public-api";
 import type { Conclave, TargetKind } from "../types.js";
 import { getConclaveByTarget, markTargetRouted, saveConclave } from "../redis.js";
 import type { QuorumSettings } from "../settings.js";
@@ -21,7 +21,12 @@ export async function spawnConclave(
   context: Pick<TriggerContext, "redis" | "reddit" | "scheduler">,
   input: SpawnInput,
   settings: QuorumSettings,
-): Promise<{ conclave?: Conclave; alreadyExisted: boolean; conclavePostUrl?: string }> {
+): Promise<{
+  conclave?: Conclave;
+  alreadyExisted: boolean;
+  conclavePostUrl?: string;
+  post?: Post;
+}> {
   const existing = await getConclaveByTarget(context.redis, input.targetId);
   if (existing) {
     return { conclave: existing, alreadyExisted: true };
@@ -89,6 +94,7 @@ export async function spawnConclave(
     conclave,
     alreadyExisted: false,
     conclavePostUrl: post.permalink,
+    post,
   };
 }
 
