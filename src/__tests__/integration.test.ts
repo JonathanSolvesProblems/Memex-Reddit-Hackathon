@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fakeContext, type FakeReddit, type FakeRedis } from "./fakes.js";
+import { fakeContext } from "./fakes.js";
 import {
   saveConclave,
   getConclave,
@@ -48,15 +48,9 @@ function makeConclave(over?: Partial<Conclave>): Conclave {
   };
 }
 
-type Harness = {
-  redis: FakeRedis;
-  reddit: FakeReddit;
-  context: never;
-};
-
 describe("vote → resolve → execute", () => {
   it("REMOVE at quorum removes the post and closes the room", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
 
     const res = await submitVote(
@@ -74,7 +68,7 @@ describe("vote → resolve → execute", () => {
   });
 
   it("KEEP at quorum approves the post", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     await submitVote(
       h.context,
@@ -86,7 +80,7 @@ describe("vote → resolve → execute", () => {
   });
 
   it("ESCALATE notifies modmail and performs no destructive action", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     await submitVote(
       h.context,
@@ -100,7 +94,7 @@ describe("vote → resolve → execute", () => {
   });
 
   it("does NOT resolve below quorum", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     const res = await submitVote(
       h.context,
@@ -114,7 +108,7 @@ describe("vote → resolve → execute", () => {
   });
 
   it("resolves once the third vote lands", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     const s = settings({ quorumSize: 3 });
     await submitVote(h.context, { conclaveId: "c_test1", modName: "m1", choice: "remove", reason: "" }, s);
@@ -128,7 +122,7 @@ describe("vote → resolve → execute", () => {
 
 describe("precedent recording + surfacing", () => {
   it("a resolved decision becomes a retrievable precedent for similar content", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     await submitVote(
       h.context,
@@ -147,7 +141,7 @@ describe("precedent recording + surfacing", () => {
   });
 
   it("does not surface unrelated content", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await recordDecision(h.redis, {
       id: "p1",
       subredditName: "s",
@@ -170,7 +164,7 @@ describe("precedent recording + surfacing", () => {
 
 describe("shadow voting → calibration", () => {
   it("shadow votes don't count toward quorum but are logged against the team decision", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     await setShadowMod(h.redis, "newmod", true);
     const s = settings({ quorumSize: 1 });
@@ -202,7 +196,7 @@ describe("shadow voting → calibration", () => {
 
 describe("expiry", () => {
   it("closeExpired resolves to the plurality when votes exist", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     const s = settings({ quorumSize: 5 });
     await submitVote(h.context, { conclaveId: "c_test1", modName: "m1", choice: "warn", reason: "" }, s);
@@ -215,7 +209,7 @@ describe("expiry", () => {
   });
 
   it("closeExpired closes with no decision when there are no votes", async () => {
-    const h = fakeContext() as Harness;
+    const h = fakeContext();
     await saveConclave(h.redis, makeConclave());
     const conclave = await getConclave(h.redis, "c_test1");
     await closeExpired(h.context, conclave!, settings({ quorumSize: 3 }));

@@ -3,6 +3,7 @@
  * Quorum actually uses. Lets us run the real vote/resolve/precedent pipeline
  * in unit tests without the platform.
  */
+import type { RedisClient, TriggerContext } from "@devvit/public-api";
 
 type ZEntry = { member: string; score: number };
 
@@ -168,15 +169,24 @@ export class FakeScheduler {
   async cancelJob(_id: string): Promise<void> {}
 }
 
-export function fakeContext() {
-  const redis = new FakeRedis();
+type ContextSubset = Pick<TriggerContext, "redis" | "reddit" | "scheduler">;
+
+export function fakeContext(): {
+  redis: RedisClient;
+  reddit: FakeReddit;
+  scheduler: FakeScheduler;
+  context: ContextSubset;
+} {
+  const redisImpl = new FakeRedis();
   const reddit = new FakeReddit();
   const scheduler = new FakeScheduler();
-  // The pipeline functions only touch redis / reddit / scheduler.
+  // The pipeline functions only touch the subset of methods these fakes
+  // implement, so the cast to the real client types is sound for tests.
+  const redis = redisImpl as unknown as RedisClient;
   return {
     redis,
     reddit,
     scheduler,
-    context: { redis, reddit, scheduler } as never,
+    context: { redis: redisImpl, reddit, scheduler } as unknown as ContextSubset,
   };
 }
