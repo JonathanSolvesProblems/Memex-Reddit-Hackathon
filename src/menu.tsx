@@ -4,6 +4,7 @@ import { spawnConclave } from "./conclave/spawn.js";
 import { findPrecedents, summarizeMatches } from "./precedent/retrieve.js";
 import {
   isShadowMod,
+  listShadowMods,
   setShadowMod,
 } from "./redis.js";
 import { loadSettings } from "./settings.js";
@@ -175,32 +176,62 @@ function registerToggleShadow(): void {
     location: "subreddit",
     forUserType: "moderator",
     onPress: async (_event, context) => {
-      context.ui.showForm(toggleShadowForm);
+      const subredditName = await context.reddit.getCurrentSubredditName();
+      const mods = await context.reddit
+        .getModerators({ subredditName })
+        .all();
+      const me = (await context.reddit.getCurrentUser())?.username;
+      const names = mods
+        .map((m) => m.username)
+        .filter((n) => n && n !== "AutoModerator" && !n.endsWith("-mod"));
+      const shadowSet = new Set(await listShadowMods(context.redis));
+      context.ui.showForm(toggleShadowForm, {
+        mods: names,
+        defaultMod: me && names.includes(me) ? me : names[0] ?? "",
+        shadowList: [...shadowSet],
+      });
     },
   });
 }
 
 const toggleShadowForm = Devvit.createForm(
-  {
-    title: "Toggle shadow mode",
-    acceptLabel: "Apply",
-    fields: [
-      {
-        name: "username",
-        label: "Mod username (without u/)",
-        type: "string",
-        required: true,
-      },
-      {
-        name: "enable",
-        label: "Enable shadow mode (uncheck to graduate to full vote)",
-        type: "boolean",
-        defaultValue: true,
-      },
-    ],
+  (data) => {
+    const mods = (data.mods as string[] | undefined) ?? [];
+    const shadowList = new Set((data.shadowList as string[] | undefined) ?? []);
+    const defaultMod = (data.defaultMod as string | undefined) ?? mods[0] ?? "";
+    return {
+      title: "Shadow mode",
+      acceptLabel: "Apply",
+      description:
+        "Shadow mods cast votes that are logged for calibration but don't count toward quorum.",
+      fields: [
+        {
+          name: "username",
+          label: "Moderator",
+          type: "select",
+          required: true,
+          options: mods.map((m) => ({
+            label: shadowList.has(m) ? `${m} (currently shadow)` : m,
+            value: m,
+          })),
+          defaultValue: [defaultMod],
+        },
+        {
+          name: "enable",
+          label: "Enable shadow mode (turn off to graduate to full vote)",
+          type: "boolean",
+          defaultValue: true,
+        },
+      ],
+    };
   },
   async (event, context) => {
-    const username = String(event.values.username).replace(/^u\//, "").trim();
+    const raw = event.values.username;
+    const username = Array.isArray(raw) ? String(raw[0]) : String(raw ?? "");
+    if (!username) {
+      context.ui.showToast("No moderator selected.");
+      return;
+    }
     const enable = Boolean(event.values.enable);
     const before = await isShadowMod(context.redis, username);
     await setShadowMod(context.redis, username, enable);
