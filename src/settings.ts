@@ -32,7 +32,7 @@ export const appSettings: SettingsFormField[] = [
           "How many mod votes are needed before the consensus action executes. Recommended: 3.",
         defaultValue: 3,
         onValidate: ({ value }) => {
-          if (!value || value < 2) return "Quorum must be at least 2.";
+          if (!value || value < 1) return "Quorum must be at least 1.";
           if (value > 25) return "Quorum cannot exceed 25.";
         },
       },
