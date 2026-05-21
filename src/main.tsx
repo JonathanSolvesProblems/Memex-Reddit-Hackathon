@@ -1,7 +1,7 @@
 import { Devvit } from "@devvit/public-api";
 import { appSettings } from "./settings.js";
 import { registerMenu } from "./menu.js";
-import { QuorumPost } from "./post.js";
+import { MemexPost } from "./post.js";
 import { runWeeklyDigest } from "./calibration/digest.js";
 import {
   onAppInstallOrUpgrade,
@@ -22,10 +22,10 @@ Devvit.configure({
 Devvit.addSettings(appSettings);
 
 Devvit.addCustomPostType({
-  name: "Quorum",
-  description: "Async mod decision rooms and the team's living rulebook",
+  name: "Memex",
+  description: "Your mod team's memory — decision rooms, precedent recall, and a living rulebook",
   height: "tall",
-  render: QuorumPost,
+  render: MemexPost,
 });
 
 Devvit.addTrigger({ event: "PostSubmit", onEvent: onPostSubmit });

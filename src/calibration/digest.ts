@@ -26,7 +26,7 @@ export async function runWeeklyDigest(
     try {
       await context.reddit.modMail.createModInboxConversation({
         subredditId: subreddit.id,
-        subject: `[Quorum] Weekly calibration digest for u/${mod}`,
+        subject: `[Memex] Weekly calibration digest for u/${mod}`,
         bodyMarkdown: body,
       });
     } catch {

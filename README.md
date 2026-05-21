@@ -1,10 +1,10 @@
-# Quorum
+# Memex
 
-**The only Reddit mod tool with institutional memory.** Quorum remembers how
+**The only Reddit mod tool with institutional memory.** Memex remembers how
 your team decided before, surfaces it at the moment you decide again, and keeps
 new mods consistent with the team's actual standards.
 
-Most mod tools make one mod faster at clearing a queue. Quorum makes the *team*
+Most mod tools make one mod faster at clearing a queue. Memex makes the *team*
 decide consistently over time — and stops that knowledge from walking out the
 door when a veteran mod leaves.
 
@@ -38,7 +38,7 @@ absorb the team's standards instead of guessing for six months.
 
 ## Why it's defensibly different
 
-The "shared mod workspace / coordination" space is crowded. Quorum's
+The "shared mod workspace / coordination" space is crowded. Memex's
 **institutional-memory layer is not**: no other tool surfaces *how your team
 decided on similar content* at decision time, scores decision consistency, or
 calibrates new mods against the team's real pattern. The voting + realtime is

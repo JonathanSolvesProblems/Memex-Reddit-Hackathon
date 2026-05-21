@@ -109,7 +109,7 @@ async function openConclaveFor(
 
 function registerSendToConclave(location: "post" | "comment"): void {
   Devvit.addMenuItem({
-    label: "Quorum: Send to Conclave",
+    label: "Memex: Send to Conclave",
     location,
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
@@ -142,7 +142,7 @@ const decisionDnaForm = Devvit.createForm(
 
 function registerDecisionDNA(location: "post" | "comment"): void {
   Devvit.addMenuItem({
-    label: "Quorum: Decision DNA",
+    label: "Memex: Decision DNA",
     location,
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
@@ -174,7 +174,7 @@ function registerDecisionDNA(location: "post" | "comment"): void {
 
 function registerToggleShadow(): void {
   Devvit.addMenuItem({
-    label: "Quorum: Toggle shadow mode for a mod",
+    label: "Memex: Toggle shadow mode for a mod",
     location: "subreddit",
     forUserType: "moderator",
     onPress: async (_event, context) => {
@@ -247,13 +247,13 @@ const toggleShadowForm = Devvit.createForm(
 
 function registerOpenRulebook(): void {
   Devvit.addMenuItem({
-    label: "Quorum: Open Living Rulebook",
+    label: "Memex: Open Living Rulebook",
     location: "subreddit",
     forUserType: "moderator",
     onPress: async (_event, context) => {
       const sub = await context.reddit.getCurrentSubreddit();
       const post = await context.reddit.submitPost({
-        title: "Quorum — Living Rulebook",
+        title: "Memex — Living Rulebook",
         subredditName: sub.name,
         preview: (
           <vstack alignment="middle center" grow padding="medium">

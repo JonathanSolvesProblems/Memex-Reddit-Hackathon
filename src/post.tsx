@@ -73,7 +73,7 @@ type RealtimeMsg =
 
 const PRESENCE_TTL_MS = 15_000;
 
-export const QuorumPost: Devvit.CustomPostComponent = (context) => {
+export const MemexPost: Devvit.CustomPostComponent = (context) => {
   const [state, setState] = useState<QuorumPostState>(async () =>
     loadState(context),
   );
@@ -657,7 +657,7 @@ function UnknownView(): JSX.Element {
       padding="medium"
     >
       <text size="medium" weight="bold" color={C.text}>
-        Quorum
+        Memex
       </text>
       <text size="small" color={C.faint} wrap alignment="center">
         This post is no longer linked to a Conclave or Rulebook record.

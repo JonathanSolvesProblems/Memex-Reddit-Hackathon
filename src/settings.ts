@@ -53,7 +53,7 @@ export const appSettings: SettingsFormField[] = [
         name: SETTING.banRequiresHumanClick,
         label: "Bans always require a human click",
         helpText:
-          "Recommended ON. Reddit's 2026 admin policy restricts automated bans. Quorum surfaces the recommendation; a mod still has to click.",
+          "Recommended ON. Reddit's 2026 admin policy restricts automated bans. Memex surfaces the recommendation; a mod still has to click.",
         defaultValue: true,
       },
     ],

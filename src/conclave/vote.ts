@@ -90,7 +90,7 @@ export async function resolveConclave(
     targetKind: conclave.targetKind,
     contentSnippet: conclave.contentSnippet,
     action: resolution,
-    modName: "quorum",
+    modName: "team-consensus",
     reason: topReason,
     permalink: conclave.permalink,
     decidedAt: Date.now(),
@@ -155,7 +155,7 @@ async function warnAuthor(
   try {
     await context.reddit.modMail.createModInboxConversation({
       subredditId: await getSubredditId(context, conclave.subredditName),
-      subject: `[Quorum] Warning issued — ${conclave.targetKind}`,
+      subject: `[Memex] Warning issued — ${conclave.targetKind}`,
       bodyMarkdown:
         `The mod team reached quorum to warn u/${conclave.authorName} ` +
         `regarding [this ${conclave.targetKind}](${conclave.permalink}).\n\n` +
@@ -177,7 +177,7 @@ async function notifyEscalation(
   try {
     await context.reddit.modMail.createModInboxConversation({
       subredditId: await getSubredditId(context, conclave.subredditName),
-      subject: `[Quorum] Escalation: ${conclave.targetKind} by u/${conclave.authorName}`,
+      subject: `[Memex] Escalation: ${conclave.targetKind} by u/${conclave.authorName}`,
       bodyMarkdown:
         `The mod team reached quorum to **escalate** [this ${conclave.targetKind}](${conclave.permalink}).` +
         banLine,

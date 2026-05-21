@@ -51,7 +51,7 @@ export async function spawnConclave(
   };
 
   const post = await context.reddit.submitPost({
-    title: `[Quorum] Decision needed — ${input.targetKind} by u/${input.authorName}`,
+    title: `[Memex] Decision needed — ${input.targetKind} by u/${input.authorName}`,
     subredditName: input.subredditName,
     preview: (
       <vstack alignment="middle center" grow padding="medium">
@@ -73,12 +73,12 @@ export async function spawnConclave(
   try {
     await context.reddit.modMail.createModInboxConversation({
       subredditId: post.subredditId,
-      subject: `[Quorum] New decision needed (${conclaveId})`,
+      subject: `[Memex] New decision needed (${conclaveId})`,
       bodyMarkdown:
         `A new Conclave is open for [this ${input.targetKind}](${input.permalink}) by u/${input.authorName}.\n\n` +
         `Routing reason: ${input.reason}\n\n` +
         `Cast your vote here: ${post.permalink}\n\n` +
-        `Quorum: ${settings.quorumSize} votes. Window: ${settings.voteWindowHours}h.`,
+        `Votes needed: ${settings.quorumSize}. Window: ${settings.voteWindowHours}h.`,
     });
   } catch {
     // best-effort
