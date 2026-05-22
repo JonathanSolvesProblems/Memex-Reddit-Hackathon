@@ -99,6 +99,19 @@ describe("vote → resolve → execute", () => {
     expect(h.reddit.actions.modmails[0].bodyMarkdown).toContain("human click");
   });
 
+  it("writes a native mod note on resolution", async () => {
+    const h = fakeContext();
+    await saveConclave(h.redis, makeConclave());
+    await submitVote(
+      h.context,
+      { conclaveId: "c_test1", modName: "mod1", choice: "remove", reason: "spam" },
+      settings({ quorumSize: 1 }),
+    );
+    expect(h.reddit.modNotes).toHaveLength(1);
+    expect(h.reddit.modNotes[0].user).toBe("spammer");
+    expect(h.reddit.modNotes[0].note).toContain("REMOVE");
+  });
+
   it("does NOT resolve below quorum", async () => {
     const h = fakeContext();
     await saveConclave(h.redis, makeConclave());

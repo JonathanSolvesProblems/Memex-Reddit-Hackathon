@@ -14,6 +14,7 @@ import {
   getPrecedent,
   getVotes,
   isShadowMod,
+  listOpenConclaves,
   recentPrecedentIds,
   tallyVotes,
 } from "./redis.js";
@@ -62,7 +63,12 @@ type ConclaveRoomData = {
 
 type QuorumPostState =
   | { kind: "conclave"; room: ConclaveRoomData }
-  | { kind: "rulebook"; precedents: Precedent[] }
+  | {
+      kind: "rulebook";
+      precedents: Precedent[];
+      total: number;
+      openConclaves: number;
+    }
   | { kind: "unknown" };
 
 /* ------------------------------- dispatcher ------------------------------ */
@@ -149,7 +155,13 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
     );
   }
   if (state.kind === "rulebook") {
-    return <RulebookView precedents={state.precedents} />;
+    return (
+      <RulebookView
+        precedents={state.precedents}
+        total={state.total}
+        openConclaves={state.openConclaves}
+      />
+    );
   }
   return <UnknownView />;
 };
@@ -546,7 +558,31 @@ function VoteRow(props: { vote: Vote; key?: string }): JSX.Element {
 
 /* ------------------------------ rulebook view ----------------------------- */
 
-function RulebookView(props: { precedents: Precedent[] }): JSX.Element {
+function StatTile(props: { value: string; label: string }): JSX.Element {
+  return (
+    <vstack
+      grow
+      padding="small"
+      cornerRadius="medium"
+      backgroundColor={C.cardAlt}
+      alignment="middle center"
+      gap="none"
+    >
+      <text size="xlarge" weight="bold" color={C.text}>
+        {props.value}
+      </text>
+      <text size="xsmall" color={C.faint}>
+        {props.label}
+      </text>
+    </vstack>
+  );
+}
+
+function RulebookView(props: {
+  precedents: Precedent[];
+  total: number;
+  openConclaves: number;
+}): JSX.Element {
   const totals: Record<VoteChoice, number> = {
     remove: 0,
     keep: 0,
@@ -554,6 +590,8 @@ function RulebookView(props: { precedents: Precedent[] }): JSX.Element {
     escalate: 0,
   };
   for (const p of props.precedents) totals[p.action] += 1;
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const thisWeek = props.precedents.filter((p) => p.decidedAt >= weekAgo).length;
 
   return (
     <zstack width="100%" height="100%" backgroundColor={C.bg}>
@@ -563,10 +601,16 @@ function RulebookView(props: { precedents: Precedent[] }): JSX.Element {
             Living Rulebook
           </text>
           <text size="xsmall" color={C.faint} wrap>
-            The team's applied decisions across the last{" "}
-            {props.precedents.length} actions — not the written rules.
+            The team's applied decisions — not the written rules.
           </text>
         </vstack>
+
+        {/* impact stats */}
+        <hstack width="100%" gap="small">
+          <StatTile value={`${props.total}`} label="DECISIONS" />
+          <StatTile value={`${thisWeek}`} label="THIS WEEK" />
+          <StatTile value={`${props.openConclaves}`} label="OPEN CONCLAVES" />
+        </hstack>
 
         <hstack width="100%" gap="small">
           {VOTE_ORDER.map((c) => {
@@ -705,14 +749,18 @@ async function loadState(context: Context): Promise<QuorumPostState> {
 
   const isRulebook = await context.redis.get(`rulebook-post:${postId}`);
   if (isRulebook) {
-    const ids = await recentPrecedentIds(context.redis, 100);
+    const allIds = await recentPrecedentIds(context.redis, 100000);
+    const total = allIds.length;
     const precedents: Precedent[] = [];
-    for (const id of ids) {
+    for (const id of allIds.slice(0, 100)) {
       const p = await getPrecedent(context.redis, id);
       if (p) precedents.push(p);
     }
     precedents.sort((a, b) => b.decidedAt - a.decidedAt);
-    return { kind: "rulebook", precedents };
+    const openConclaves = (
+      await listOpenConclaves(context.redis, Number.MAX_SAFE_INTEGER)
+    ).length;
+    return { kind: "rulebook", precedents, total, openConclaves };
   }
 
   return { kind: "unknown" };

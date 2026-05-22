@@ -97,7 +97,40 @@ export async function resolveConclave(
   });
 
   await logCalibration(context.redis, conclave, resolution, votes);
+  await writeModNote(context, conclave, resolution, topReason);
   return resolution;
+}
+
+const NOTE_LABEL: Partial<Record<VoteChoice, "SPAM_WARNING" | "SOLID_CONTRIBUTOR">> =
+  {
+    remove: "SPAM_WARNING",
+    keep: "SOLID_CONTRIBUTOR",
+  };
+
+/**
+ * Extends Memex's memory into Reddit's native mod-note timeline, so the team's
+ * decision is visible even outside the app. Best-effort.
+ */
+async function writeModNote(
+  context: Pick<TriggerContext, "reddit">,
+  conclave: Conclave,
+  resolution: VoteChoice,
+  reason: string,
+): Promise<void> {
+  if (!conclave.authorName || conclave.authorName === "unknown") return;
+  const note =
+    `[Memex] Team ${resolution.toUpperCase()} on ${conclave.targetKind}` +
+    (reason ? `: ${reason}` : "");
+  try {
+    await context.reddit.addModNote({
+      subreddit: conclave.subredditName,
+      user: conclave.authorName,
+      note: note.slice(0, 100),
+      label: NOTE_LABEL[resolution],
+    });
+  } catch {
+    // best-effort: app may lack permission, or user may be deleted
+  }
 }
 
 async function executeResolution(

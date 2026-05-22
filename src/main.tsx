@@ -9,6 +9,7 @@ import {
   onConclaveSweep,
   onConclaveTimeout,
   onModActionEvent,
+  onModMailReceived,
   onPostSubmit,
 } from "./triggers.js";
 
@@ -31,6 +32,7 @@ Devvit.addCustomPostType({
 Devvit.addTrigger({ event: "PostSubmit", onEvent: onPostSubmit });
 Devvit.addTrigger({ event: "CommentSubmit", onEvent: onCommentSubmit });
 Devvit.addTrigger({ event: "ModAction", onEvent: onModActionEvent });
+Devvit.addTrigger({ event: "ModMail", onEvent: onModMailReceived });
 Devvit.addTrigger({
   events: ["AppInstall", "AppUpgrade"],
   onEvent: onAppInstallOrUpgrade,

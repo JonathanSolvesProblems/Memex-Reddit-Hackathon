@@ -107,6 +107,12 @@ export type RecordedActions = {
   modmails: { subject: string; bodyMarkdown: string }[];
 };
 
+export type RecordedModNote = {
+  user: string;
+  note: string;
+  label?: string;
+};
+
 export class FakeReddit {
   actions: RecordedActions = {
     removed: [],
@@ -114,6 +120,17 @@ export class FakeReddit {
     locked: [],
     modmails: [],
   };
+  modNotes: RecordedModNote[] = [];
+
+  async addModNote(opts: {
+    subreddit: string;
+    user: string;
+    note: string;
+    label?: string;
+  }) {
+    this.modNotes.push({ user: opts.user, note: opts.note, label: opts.label });
+    return {} as never;
+  }
 
   private makeThing(id: string) {
     return {
