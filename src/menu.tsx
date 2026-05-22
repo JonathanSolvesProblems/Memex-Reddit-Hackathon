@@ -2,6 +2,7 @@ import { Devvit } from "@devvit/public-api";
 import type { Context, MenuItemOnPressEvent } from "@devvit/public-api";
 import { spawnConclave } from "./conclave/spawn.js";
 import { analyzeDecision, formatDecisionDNA } from "./precedent/retrieve.js";
+import { seedDemoData } from "./seed.js";
 import {
   isShadowMod,
   listShadowMods,
@@ -272,9 +273,48 @@ function registerOpenRulebook(): void {
   });
 }
 
+const seedForm = Devvit.createForm(
+  {
+    title: "Seed demo data",
+    acceptLabel: "Inject decisions",
+    description:
+      "Injects ~15 realistic past decisions so Decision DNA and the Living Rulebook show real patterns. For demos/testing only.",
+    fields: [
+      {
+        name: "confirm",
+        label: "Yes, inject demo decisions",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+  },
+  async (event, context) => {
+    if (!event.values.confirm) {
+      context.ui.showToast("Cancelled — no data injected.");
+      return;
+    }
+    const count = await seedDemoData(context);
+    context.ui.showToast(
+      `Injected ${count} demo decisions. Try Decision DNA on similar content.`,
+    );
+  },
+);
+
+function registerSeedDemo(): void {
+  Devvit.addMenuItem({
+    label: "Memex: Seed demo data (testing)",
+    location: "subreddit",
+    forUserType: "moderator",
+    onPress: async (_event, context) => {
+      context.ui.showForm(seedForm);
+    },
+  });
+}
+
 export function registerMenu(): void {
   registerSendToConclave();
   registerDecisionDNA();
+  registerSeedDemo();
   registerToggleShadow();
   registerOpenRulebook();
 }

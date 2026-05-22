@@ -233,6 +233,23 @@ describe("Decision DNA (analyzeDecision)", () => {
   });
 });
 
+describe("demo seed", () => {
+  it("injects decisions that produce a clear Decision DNA pattern", async () => {
+    const { seedDemoData, SEED_DEMO_PROBES } = await import("../seed.js");
+    const h = fakeContext();
+    const n = await seedDemoData(h.context);
+    expect(n).toBeGreaterThanOrEqual(12);
+
+    const a = await analyzeDecision(h.context, SEED_DEMO_PROBES[0], {
+      limit: 500,
+      minSimilarity: 20,
+      topK: 3,
+    });
+    expect(a.consideredCount).toBeGreaterThan(0);
+    expect(a.dominant).toBe("remove");
+  });
+});
+
 describe("shadow voting → calibration", () => {
   it("shadow votes don't count toward quorum but are logged against the team decision", async () => {
     const h = fakeContext();
