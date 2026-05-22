@@ -107,10 +107,14 @@ async function openConclaveFor(
   }
 }
 
-function registerSendToConclave(location: "post" | "comment"): void {
+function targetKindFromId(id: string): "post" | "comment" {
+  return id.startsWith("t1_") ? "comment" : "post";
+}
+
+function registerSendToConclave(): void {
   Devvit.addMenuItem({
     label: "Memex: Send to Conclave",
-    location,
+    location: ["post", "comment"],
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
       const targetId = event.targetId;
@@ -120,7 +124,7 @@ function registerSendToConclave(location: "post" | "comment"): void {
       }
       await context.redis.set(
         await pendingKey(context),
-        JSON.stringify({ targetId, targetKind: location }),
+        JSON.stringify({ targetId, targetKind: targetKindFromId(targetId) }),
         { expiration: new Date(Date.now() + PENDING_TTL_MS) },
       );
       context.ui.showForm(reasonForm);
@@ -140,10 +144,10 @@ const decisionDnaForm = Devvit.createForm(
   },
 );
 
-function registerDecisionDNA(location: "post" | "comment"): void {
+function registerDecisionDNA(): void {
   Devvit.addMenuItem({
     label: "Memex: Decision DNA",
-    location,
+    location: ["post", "comment"],
     forUserType: "moderator",
     onPress: async (event: MenuItemOnPressEvent, context: Context) => {
       const targetId = event.targetId;
@@ -152,7 +156,7 @@ function registerDecisionDNA(location: "post" | "comment"): void {
         return;
       }
       let snippet = "";
-      if (location === "post") {
+      if (targetKindFromId(targetId) === "post") {
         const post = await context.reddit.getPostById(targetId);
         snippet = `${post.title}\n${(post as unknown as { body?: string }).body ?? ""}`;
       } else {
@@ -269,10 +273,8 @@ function registerOpenRulebook(): void {
 }
 
 export function registerMenu(): void {
-  registerSendToConclave("post");
-  registerSendToConclave("comment");
-  registerDecisionDNA("post");
-  registerDecisionDNA("comment");
+  registerSendToConclave();
+  registerDecisionDNA();
   registerToggleShadow();
   registerOpenRulebook();
 }
