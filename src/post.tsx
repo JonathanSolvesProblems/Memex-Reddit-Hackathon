@@ -22,6 +22,7 @@ import {
   touchViewer,
 } from "./redis.js";
 import { analyzeDecision } from "./precedent/retrieve.js";
+import { decisionsByDay } from "./stats.js";
 import { loadSettings } from "./settings.js";
 import { submitVote } from "./conclave/vote.js";
 
@@ -607,8 +608,11 @@ function RulebookView(props: {
     escalate: 0,
   };
   for (const p of props.precedents) totals[p.action] += 1;
+  const loaded = props.precedents.length;
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const thisWeek = props.precedents.filter((p) => p.decidedAt >= weekAgo).length;
+  const bins = decisionsByDay(props.precedents, 7);
+  const binMax = Math.max(1, ...bins);
 
   return (
     <zstack width="100%" height="100%" backgroundColor={C.bg}>
@@ -654,6 +658,51 @@ function RulebookView(props: {
             );
           })}
         </hstack>
+
+        {/* proportional outcome bar — the team's decision distribution */}
+        {loaded > 0 ? (
+          <hstack
+            width="100%"
+            height="14px"
+            cornerRadius="full"
+            backgroundColor={C.line}
+          >
+            {VOTE_ORDER.map((c) =>
+              totals[c] > 0 ? (
+                <hstack
+                  key={`bar-${c}`}
+                  width={`${Math.round((totals[c] / loaded) * 100)}%`}
+                  height="14px"
+                  backgroundColor={VOTE_META[c].color}
+                />
+              ) : null,
+            )}
+          </hstack>
+        ) : null}
+
+        {/* 7-day activity sparkline */}
+        <vstack width="100%" gap="small">
+          <text size="xsmall" color={C.faint}>
+            DECISIONS · LAST 7 DAYS
+          </text>
+          <hstack width="100%" height="44px" gap="small" alignment="bottom">
+            {bins.map((n, i) => (
+              <vstack
+                key={`spark-${i}`}
+                grow
+                height="100%"
+                alignment="bottom center"
+              >
+                <vstack
+                  width="100%"
+                  height={`${Math.max(6, Math.round((n / binMax) * 100))}%`}
+                  cornerRadius="small"
+                  backgroundColor={n > 0 ? C.escalate : C.cardAlt}
+                />
+              </vstack>
+            ))}
+          </hstack>
+        </vstack>
 
         <vstack width="100%" gap="small" grow>
           <text size="small" weight="bold" color={C.dim}>

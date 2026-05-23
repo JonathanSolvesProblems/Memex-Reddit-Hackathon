@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { tokenize, tokenSimilarity, fingerprint } from "../precedent/embed.js";
 import { tallyVotes } from "../redis.js";
 import { evaluateAutoRoute } from "../conclave/router.js";
-import type { Vote } from "../types.js";
+import { decisionsByDay, outcomeCounts } from "../stats.js";
+import type { Precedent, Vote } from "../types.js";
 import type { QuorumSettings } from "../settings.js";
 
 const baseSettings: QuorumSettings = {
@@ -28,6 +29,55 @@ function vote(choice: Vote["choice"], shadow = false): Vote {
     castAt: Date.now(),
   };
 }
+
+function prec(decidedAt: number, action: Precedent["action"] = "remove"): Precedent {
+  return {
+    id: `p_${Math.random()}`,
+    subredditName: "s",
+    targetKind: "post",
+    contentSnippet: "x",
+    action,
+    modName: "m",
+    reason: "",
+    permalink: "",
+    decidedAt,
+    fingerprint: "f",
+  };
+}
+
+describe("decisionsByDay", () => {
+  const now = 1_000_000_000_000;
+  const day = 24 * 60 * 60 * 1000;
+
+  it("buckets into N day-windows, newest on the right", () => {
+    const bins = decisionsByDay(
+      [prec(now), prec(now - 10), prec(now - day), prec(now - 6 * day)],
+      7,
+      now,
+    );
+    expect(bins).toHaveLength(7);
+    expect(bins[6]).toBe(2); // today (now and now-10ms)
+    expect(bins[5]).toBe(1); // yesterday
+    expect(bins[0]).toBe(1); // 6 days ago
+  });
+
+  it("ignores decisions outside the window and handles days<=0", () => {
+    expect(decisionsByDay([prec(now - 30 * day)], 7, now).reduce((a, b) => a + b, 0)).toBe(0);
+    expect(decisionsByDay([prec(now)], 0, now)).toEqual([]);
+  });
+});
+
+describe("outcomeCounts", () => {
+  it("tallies each outcome", () => {
+    const c = outcomeCounts([
+      prec(1, "remove"),
+      prec(2, "remove"),
+      prec(3, "keep"),
+      prec(4, "warn"),
+    ]);
+    expect(c).toEqual({ remove: 2, keep: 1, warn: 1, escalate: 0 });
+  });
+});
 
 describe("tokenize", () => {
   it("strips stopwords and short tokens", () => {
