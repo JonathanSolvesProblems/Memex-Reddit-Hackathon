@@ -113,13 +113,14 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   const liveSync =
     state.kind === "conclave" && !state.room.conclave.closed;
 
-  const heartbeat = context.useInterval(() => {
+  // NOTE: the callback is async and awaits its work so Devvit captures the
+  // setState it produces. A detached `void (async()=>…)()` would return before
+  // the state update lands and the poll would appear to do nothing.
+  const heartbeat = context.useInterval(async () => {
     if (!conclaveId) return;
-    void (async () => {
-      await touchViewer(context.redis, conclaveId, myName);
-      await refreshVotes();
-      setViewerCount(await countActiveViewers(context.redis, conclaveId));
-    })();
+    await touchViewer(context.redis, conclaveId, myName);
+    await refreshVotes();
+    setViewerCount(await countActiveViewers(context.redis, conclaveId));
   }, 2000);
 
   if (liveSync) {
