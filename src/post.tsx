@@ -118,7 +118,11 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   // the state update lands and the poll would appear to do nothing.
   const heartbeat = context.useInterval(async () => {
     if (!conclaveId) return;
-    await touchViewer(context.redis, conclaveId, myName);
+    // Only count identified moderators as "reviewing" — anonymous/logged-out
+    // viewers (e.g. incognito windows) shouldn't inflate the presence count.
+    if (myName && myName !== "unknown") {
+      await touchViewer(context.redis, conclaveId, myName);
+    }
     await refreshVotes();
     setViewerCount(await countActiveViewers(context.redis, conclaveId));
   }, 2000);

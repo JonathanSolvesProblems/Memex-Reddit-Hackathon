@@ -30,7 +30,7 @@ export const K = {
   viewing: (conclaveId: string) => `viewing:${conclaveId}`,
 };
 
-const VIEW_WINDOW_MS = 10_000;
+const VIEW_WINDOW_MS = 6_000;
 
 /** Records that a mod is currently viewing a conclave (Redis-backed presence). */
 export async function touchViewer(
