@@ -89,6 +89,30 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   const channelName = `q_${(context.postId ?? "none").replace(/[^a-zA-Z0-9_]/g, "_")}`;
   const myName =
     state.kind === "conclave" ? state.room.currentMod : "viewer";
+  const conclaveId = state.kind === "conclave" ? state.room.conclave.id : null;
+
+  // Cheap refresh: re-read ONLY the changing parts (votes + conclave status),
+  // preserving the expensive Decision DNA analysis computed on load. Used by
+  // both realtime and the poll so live updates are near-instant and lightweight.
+  const refreshVotes = async (): Promise<void> => {
+    if (!conclaveId) return;
+    const [conclave, votes] = await Promise.all([
+      getConclave(context.redis, conclaveId),
+      getVotes(context.redis, conclaveId),
+    ]);
+    setState((prev) =>
+      prev.kind === "conclave"
+        ? {
+            kind: "conclave",
+            room: {
+              ...prev.room,
+              votes,
+              conclave: conclave ?? prev.room.conclave,
+            },
+          }
+        : prev,
+    );
+  };
 
   const channel = context.useChannel<RealtimeMsg>({
     name: channelName,
@@ -97,18 +121,16 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
         const name = msg.name;
         setViewers((prev) => ({ ...prev, [name]: Date.now() }));
       } else {
-        void (async () => setState(await loadState(context)))();
+        void refreshVotes();
       }
     },
   });
 
-  // Runs every few seconds while an open conclave is being viewed. It both
-  // broadcasts presence AND re-polls state — polling is the reliable path for
-  // live updates (Devvit realtime is best-effort, especially in dev), so the
-  // room reflects new votes/quorum within a few seconds no matter what.
+  // Poll the cheap parts every ~2s while an open conclave is viewed (reliable
+  // even when realtime doesn't fire) and broadcast presence.
   const heartbeat = context.useInterval(() => {
     void channel.send({ kind: "presence", name: myName });
-    void (async () => setState(await loadState(context)))();
+    void refreshVotes();
     setViewers((prev) => {
       const now = Date.now();
       const next: Record<string, number> = {};
@@ -117,7 +139,7 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
       }
       return next;
     });
-  }, 4000);
+  }, 2000);
 
   // Realtime sync + presence only matter for an OPEN conclave room. Don't burn
   // realtime traffic on closed rooms, the rulebook, or unknown posts.
