@@ -55,6 +55,7 @@ export async function onPostSubmit(
       authorCreatedAt: await getAuthorCreatedAt(context, event.author.name),
     },
     settings,
+    { ignoreReports: true },
   );
   if (!decision.route) return;
   if (await wasRouted(context.redis, event.post.id)) return;

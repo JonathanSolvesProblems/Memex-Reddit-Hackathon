@@ -159,6 +159,42 @@ describe("precedent recording + surfacing", () => {
     expect(matches[0].similarity).toBeGreaterThan(20);
   });
 
+  it("reports a split decision (no dominant) when outcomes tie", async () => {
+    const h = fakeContext();
+    const content = "user posted an affiliate link with a discount promo code";
+    await recordDecision(h.redis, {
+      id: "tie1",
+      subredditName: "s",
+      targetKind: "post",
+      contentSnippet: `${content} one`,
+      action: "remove",
+      modName: "a",
+      reason: "",
+      permalink: "/x",
+      decidedAt: Date.now() - 1000,
+    });
+    await recordDecision(h.redis, {
+      id: "tie2",
+      subredditName: "s",
+      targetKind: "post",
+      contentSnippet: `${content} two`,
+      action: "keep",
+      modName: "b",
+      reason: "",
+      permalink: "/x",
+      decidedAt: Date.now(),
+    });
+    const a = await analyzeDecision(
+      h.context,
+      "member shared an affiliate link with a promo discount code",
+      { limit: 500, minSimilarity: 20, topK: 3 },
+    );
+    expect(a.consideredCount).toBe(2);
+    expect(a.dominant).toBeUndefined();
+    expect(a.consistencyPct).toBe(50);
+    expect(formatDecisionDNA(a)).toContain("Split decision");
+  });
+
   it("does not surface unrelated content", async () => {
     const h = fakeContext();
     await recordDecision(h.redis, {

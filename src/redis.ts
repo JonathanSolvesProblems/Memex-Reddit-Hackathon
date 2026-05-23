@@ -234,15 +234,21 @@ export function tallyVotes(votes: Vote[]): {
     counts[v.choice] += 1;
     total += 1;
   }
-  let winner: VoteChoice | undefined;
-  let max = 0;
-  for (const c of ["remove", "keep", "warn", "escalate"] as VoteChoice[]) {
-    if (counts[c] > max) {
-      max = counts[c];
-      winner = c;
-    } else if (counts[c] === max && winner && c !== winner) {
-      winner = undefined;
-    }
-  }
+  const winner = pluralityWinner(counts);
   return { ...counts, total, winner };
+}
+
+/**
+ * Order-independent plurality: returns the single leading choice, or undefined
+ * if there is no votes or two-or-more choices tie for the lead.
+ */
+export function pluralityWinner(
+  counts: Record<VoteChoice, number>,
+): VoteChoice | undefined {
+  const choices: VoteChoice[] = ["remove", "keep", "warn", "escalate"];
+  let max = 0;
+  for (const c of choices) if (counts[c] > max) max = counts[c];
+  if (max === 0) return undefined;
+  const leaders = choices.filter((c) => counts[c] === max);
+  return leaders.length === 1 ? leaders[0] : undefined;
 }

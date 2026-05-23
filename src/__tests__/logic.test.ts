@@ -95,6 +95,22 @@ describe("tallyVotes", () => {
     ]);
     expect(tally.winner).toBe("remove");
   });
+
+  it("returns no winner on a 3-way tie regardless of order", () => {
+    expect(tallyVotes([vote("warn"), vote("keep"), vote("remove")]).winner).toBeUndefined();
+    expect(tallyVotes([vote("remove"), vote("keep"), vote("warn")]).winner).toBeUndefined();
+  });
+
+  it("returns no winner when two choices tie for the lead", () => {
+    const tally = tallyVotes([
+      vote("remove"),
+      vote("remove"),
+      vote("keep"),
+      vote("keep"),
+      vote("warn"),
+    ]);
+    expect(tally.winner).toBeUndefined();
+  });
 });
 
 describe("evaluateAutoRoute", () => {
@@ -158,5 +174,24 @@ describe("evaluateAutoRoute", () => {
       settings,
     );
     expect(match.route).toBe(true);
+  });
+
+  it("at submit time (ignoreReports) routes on keyword match with zero reports", () => {
+    const settings = { ...baseSettings, autoRouteKeywords: ["crypto"] };
+    const d = evaluateAutoRoute(
+      { contentText: "buy my crypto", authorName: "u", reportCount: 0 },
+      settings,
+      { ignoreReports: true },
+    );
+    expect(d.route).toBe(true);
+  });
+
+  it("at submit time does not route when no keyword filter is set", () => {
+    const d = evaluateAutoRoute(
+      { contentText: "anything", authorName: "u", reportCount: 0 },
+      { ...baseSettings, autoRouteKeywords: [] },
+      { ignoreReports: true },
+    );
+    expect(d.route).toBe(false);
   });
 });

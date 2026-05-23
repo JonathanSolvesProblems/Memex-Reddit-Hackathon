@@ -78,10 +78,14 @@ export async function resolveConclave(
 ): Promise<VoteChoice> {
   if (conclave.closed) return conclave.resolution ?? resolution;
 
-  await executeResolution(context, conclave, resolution, settings);
+  // Persist closed=true BEFORE executing the mod action. The action fires the
+  // ModAction trigger, whose isQuorumOriginated() guard checks the persisted
+  // conclave.closed flag — if we executed first, the trigger could record a
+  // duplicate "solo" precedent for the same decision.
   conclave.closed = true;
   conclave.resolution = resolution;
   await saveConclave(context.redis, conclave);
+  await executeResolution(context, conclave, resolution, settings);
 
   const topReason = pickTopReason(votes, resolution);
   await recordDecision(context.redis, {

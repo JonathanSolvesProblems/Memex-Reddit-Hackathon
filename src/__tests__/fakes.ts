@@ -21,6 +21,9 @@ export class FakeRedis {
   async del(...keys: string[]): Promise<void> {
     for (const k of keys) this.strings.delete(k);
   }
+  async mGet(keys: string[]): Promise<(string | null)[]> {
+    return keys.map((k) => this.strings.get(k) ?? null);
+  }
   async exists(key: string): Promise<number> {
     return this.strings.has(key) ? 1 : 0;
   }

@@ -14,15 +14,23 @@ export interface RouteEvaluation {
 export function evaluateAutoRoute(
   input: RouteEvaluation,
   settings: QuorumSettings,
+  opts: { ignoreReports?: boolean } = {},
 ): RoutingDecision {
   if (!settings.autoRouteEnabled) {
     return { route: false, reason: "auto-routing disabled" };
   }
-  if (input.reportCount < settings.autoRouteMinReports) {
+  // At submit time, report counts aren't known yet, so reports can't gate
+  // routing — keyword/account-age criteria drive it instead.
+  if (!opts.ignoreReports && input.reportCount < settings.autoRouteMinReports) {
     return {
       route: false,
       reason: `only ${input.reportCount} report(s) (need ${settings.autoRouteMinReports})`,
     };
+  }
+  // When ignoring reports, require at least one positive signal (keywords) so
+  // we don't auto-route every new post.
+  if (opts.ignoreReports && settings.autoRouteKeywords.length === 0) {
+    return { route: false, reason: "no keyword filter set for submit-time routing" };
   }
   if (
     settings.autoRouteMaxAccountAgeDays > 0 &&

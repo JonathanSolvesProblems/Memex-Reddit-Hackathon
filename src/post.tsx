@@ -101,7 +101,6 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
       }
     },
   });
-  channel.subscribe();
 
   const heartbeat = context.useInterval(() => {
     void channel.send({ kind: "presence", name: myName });
@@ -114,7 +113,17 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
       return next;
     });
   }, 5000);
-  heartbeat.start();
+
+  // Realtime sync + presence only matter for an OPEN conclave room. Don't burn
+  // realtime traffic on closed rooms, the rulebook, or unknown posts.
+  const liveSync =
+    state.kind === "conclave" && !state.room.conclave.closed;
+  if (liveSync) {
+    channel.subscribe();
+    heartbeat.start();
+  } else {
+    heartbeat.stop();
+  }
 
   const reasonForm = context.useForm(
     {
@@ -435,8 +444,9 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
       </hstack>
     );
   }
-  const dominant = analysis.dominant ?? "keep";
-  const meta = VOTE_META[dominant];
+  const split = !analysis.dominant;
+  const meta = analysis.dominant ? VOTE_META[analysis.dominant] : undefined;
+  const tileColor = meta ? meta.color : C.warn;
   const low = analysis.consistencyPct < 60;
   return (
     <hstack
@@ -445,7 +455,7 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
       cornerRadius="medium"
       backgroundColor={C.card}
       border="thin"
-      borderColor={low ? C.warn : meta.color}
+      borderColor={split || low ? C.warn : tileColor}
       alignment="middle start"
       gap="small"
     >
@@ -453,7 +463,7 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
         minWidth="52px"
         padding="xsmall"
         cornerRadius="small"
-        backgroundColor={meta.color}
+        backgroundColor={tileColor}
         alignment="middle center"
       >
         <text size="medium" weight="bold" color="#ffffff">
@@ -462,12 +472,18 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
       </vstack>
       <vstack grow gap="none">
         <text size="small" weight="bold" color={C.text}>
-          Team usually: {meta.label.toUpperCase()}
+          {split
+            ? "Split decision — no clear pattern"
+            : `Team usually: ${meta!.label.toUpperCase()}`}
         </text>
         <text size="xsmall" color={C.faint} wrap>
           {analysis.consideredCount} similar decision
           {analysis.consideredCount === 1 ? "" : "s"} on record
-          {low ? " · low consistency — genuinely borderline" : ""}
+          {split
+            ? " · team is divided — worth a vote"
+            : low
+              ? " · low consistency — genuinely borderline"
+              : ""}
         </text>
       </vstack>
     </hstack>

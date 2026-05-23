@@ -6,12 +6,7 @@ import type {
   VoteChoice,
 } from "../types.js";
 import { VOTE_CHOICES } from "../types.js";
-import {
-  getPrecedent,
-  getPrecedentTokens,
-  recentPrecedentIds,
-  savePrecedent,
-} from "../redis.js";
+import { K, recentPrecedentIds, savePrecedent } from "../redis.js";
 import { fingerprint, tokenize, tokenSimilarity } from "./embed.js";
 
 export async function recordDecision(
@@ -43,17 +38,33 @@ async function scoreAll(
 
   const ids = await recentPrecedentIds(redis, options.limit);
   const excludeSet = new Set(options.excludeTargetIds ?? []);
-  const matches: PrecedentMatch[] = [];
+  const candidates = ids.filter((id) => !excludeSet.has(id));
+  if (candidates.length === 0) return [];
 
-  for (const id of ids) {
-    if (excludeSet.has(id)) continue;
-    const tokens = await getPrecedentTokens(redis, id);
+  // One batched read for all candidate token strings, then score in memory.
+  const tokenStrings = await redis.mGet(candidates.map(K.precedentTokens));
+  const scored: { id: string; sim: number }[] = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const raw = tokenStrings[i];
+    if (!raw) continue;
+    const tokens = raw.split(" ").filter(Boolean);
     if (tokens.length === 0) continue;
     const sim = tokenSimilarity(queryTokens, tokens) * 100;
     if (sim < options.minSimilarity) continue;
-    const precedent = await getPrecedent(redis, id);
-    if (!precedent) continue;
-    matches.push({ precedent, similarity: sim });
+    scored.push({ id: candidates[i], sim });
+  }
+  if (scored.length === 0) return [];
+
+  // One batched read for the precedents that actually matched.
+  const records = await redis.mGet(scored.map((s) => K.precedent(s.id)));
+  const matches: PrecedentMatch[] = [];
+  for (let i = 0; i < scored.length; i++) {
+    const raw = records[i];
+    if (!raw) continue;
+    matches.push({
+      precedent: JSON.parse(raw) as Precedent,
+      similarity: scored[i].sim,
+    });
   }
 
   return matches.sort((a, b) => b.similarity - a.similarity);
@@ -87,20 +98,15 @@ export async function analyzeDecision(
   };
   for (const m of all) counts[m.precedent.action] += 1;
 
-  let dominant: VoteChoice | undefined;
   let max = 0;
-  for (const c of VOTE_CHOICES) {
-    if (counts[c] > max) {
-      max = counts[c];
-      dominant = c;
-    }
-  }
+  for (const c of VOTE_CHOICES) if (counts[c] > max) max = counts[c];
+  const leaders = VOTE_CHOICES.filter((c) => counts[c] === max && max > 0);
+  // No single dominant outcome when the top choices tie — that's a "split".
+  const dominant = leaders.length === 1 ? leaders[0] : undefined;
 
   const consideredCount = all.length;
   const consistencyPct =
-    consideredCount > 0 && dominant
-      ? Math.round((counts[dominant] / consideredCount) * 100)
-      : 0;
+    consideredCount > 0 ? Math.round((max / consideredCount) * 100) : 0;
 
   return {
     matches: all.slice(0, options.topK ?? 3),
@@ -130,6 +136,10 @@ export function formatDecisionDNA(analysis: DecisionAnalysis): string {
         "⚠ Low consistency — your team has handled this kind of content different ways. Worth a Conclave.",
       );
     }
+  } else {
+    lines.push(
+      "⚠ Split decision — no dominant outcome. Your team is divided on this kind of content. Worth a Conclave.",
+    );
   }
   lines.push("");
   lines.push("Breakdown:");
