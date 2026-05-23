@@ -10,6 +10,7 @@ import type {
 } from "./types.js";
 import {
   K,
+  countActiveViewers,
   getConclave,
   getPrecedent,
   getVotes,
@@ -17,6 +18,7 @@ import {
   listOpenConclaves,
   recentPrecedentIds,
   tallyVotes,
+  touchViewer,
 } from "./redis.js";
 import { analyzeDecision } from "./precedent/retrieve.js";
 import { loadSettings } from "./settings.js";
@@ -73,27 +75,19 @@ type QuorumPostState =
 
 /* ------------------------------- dispatcher ------------------------------ */
 
-type RealtimeMsg =
-  | { kind: "vote"; t: number }
-  | { kind: "presence"; name: string };
-
-const PRESENCE_TTL_MS = 15_000;
-
 export const MemexPost: Devvit.CustomPostComponent = (context) => {
   const [state, setState] = useState<QuorumPostState>(async () =>
     loadState(context),
   );
   const [selected, setSelected] = useState<VoteChoice | null>(null);
-  const [viewers, setViewers] = useState<Record<string, number>>({});
+  const [viewerCount, setViewerCount] = useState(1);
 
-  const channelName = `q_${(context.postId ?? "none").replace(/[^a-zA-Z0-9_]/g, "_")}`;
   const myName =
     state.kind === "conclave" ? state.room.currentMod : "viewer";
   const conclaveId = state.kind === "conclave" ? state.room.conclave.id : null;
 
   // Cheap refresh: re-read ONLY the changing parts (votes + conclave status),
-  // preserving the expensive Decision DNA analysis computed on load. Used by
-  // both realtime and the poll so live updates are near-instant and lightweight.
+  // preserving the expensive Decision DNA analysis computed on load.
   const refreshVotes = async (): Promise<void> => {
     if (!conclaveId) return;
     const [conclave, votes] = await Promise.all([
@@ -114,39 +108,21 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
     );
   };
 
-  const channel = context.useChannel<RealtimeMsg>({
-    name: channelName,
-    onMessage: (msg) => {
-      if (msg.kind === "presence") {
-        const name = msg.name;
-        setViewers((prev) => ({ ...prev, [name]: Date.now() }));
-      } else {
-        void refreshVotes();
-      }
-    },
-  });
-
-  // Poll the cheap parts every ~2s while an open conclave is viewed (reliable
-  // even when realtime doesn't fire) and broadcast presence.
-  const heartbeat = context.useInterval(() => {
-    void channel.send({ kind: "presence", name: myName });
-    void refreshVotes();
-    setViewers((prev) => {
-      const now = Date.now();
-      const next: Record<string, number> = {};
-      for (const [n, t] of Object.entries(prev)) {
-        if (now - t < PRESENCE_TTL_MS) next[n] = t;
-      }
-      return next;
-    });
-  }, 2000);
-
-  // Realtime sync + presence only matter for an OPEN conclave room. Don't burn
-  // realtime traffic on closed rooms, the rulebook, or unknown posts.
+  // Live updates without realtime: a short poll re-reads the cheap parts and
+  // refreshes Redis-backed presence. Reliable in dev and prod alike.
   const liveSync =
     state.kind === "conclave" && !state.room.conclave.closed;
+
+  const heartbeat = context.useInterval(() => {
+    if (!conclaveId) return;
+    void (async () => {
+      await touchViewer(context.redis, conclaveId, myName);
+      await refreshVotes();
+      setViewerCount(await countActiveViewers(context.redis, conclaveId));
+    })();
+  }, 2000);
+
   if (liveSync) {
-    channel.subscribe();
     heartbeat.start();
   } else {
     heartbeat.stop();
@@ -170,19 +146,11 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
         setSelected(null),
       );
       setState(await loadState(context));
-      try {
-        await context.realtime.send(channelName, {
-          kind: "vote",
-          t: Date.now(),
-        });
-      } catch {
-        // realtime is best-effort; the voter's own view already updated
-      }
     },
   );
 
   if (state.kind === "conclave") {
-    const liveViewers = distinctViewers(viewers, myName);
+    const liveViewers = viewerCount;
     return (
       <ConclaveView
         room={state.room}
@@ -204,18 +172,6 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   }
   return <UnknownView />;
 };
-
-function distinctViewers(
-  viewers: Record<string, number>,
-  myName: string,
-): number {
-  const now = Date.now();
-  const set = new Set<string>([myName]);
-  for (const [n, t] of Object.entries(viewers)) {
-    if (now - t < PRESENCE_TTL_MS) set.add(n);
-  }
-  return set.size;
-}
 
 /* ------------------------------ conclave view ----------------------------- */
 

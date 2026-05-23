@@ -27,7 +27,37 @@ export const K = {
   shadowMods: () => "shadow-mods",
 
   routedTargets: () => "routed-targets",
+  viewing: (conclaveId: string) => `viewing:${conclaveId}`,
 };
+
+const VIEW_WINDOW_MS = 10_000;
+
+/** Records that a mod is currently viewing a conclave (Redis-backed presence). */
+export async function touchViewer(
+  redis: RedisClient,
+  conclaveId: string,
+  modName: string,
+): Promise<void> {
+  await redis.zAdd(K.viewing(conclaveId), {
+    member: modName,
+    score: Date.now(),
+  });
+}
+
+/** Distinct mods who pinged within the presence window. */
+export async function countActiveViewers(
+  redis: RedisClient,
+  conclaveId: string,
+): Promise<number> {
+  const now = Date.now();
+  const entries = await redis.zRange(
+    K.viewing(conclaveId),
+    now - VIEW_WINDOW_MS,
+    now,
+    { by: "score" },
+  );
+  return new Set(entries.map((e) => e.member)).size;
+}
 
 export async function saveConclave(
   redis: RedisClient,
