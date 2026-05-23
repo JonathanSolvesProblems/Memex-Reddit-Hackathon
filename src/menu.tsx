@@ -35,7 +35,7 @@ const reasonForm = Devvit.createForm(
     const reason = String(event.values.reason ?? "");
     const raw = await context.redis.get(await pendingKey(context));
     if (!raw) {
-      context.ui.showToast("Selection expired — please try the menu again.");
+      context.ui.showToast("Selection expired. Please try the menu again.");
       return;
     }
     const { targetId, targetKind } = JSON.parse(raw) as {
@@ -90,7 +90,7 @@ async function openConclaveFor(
     );
 
     if (result.alreadyExisted) {
-      context.ui.showToast("A Conclave already exists for this item — opening it.");
+      context.ui.showToast("A Conclave already exists for this item. Opening it.");
       const existingPostId = result.conclave?.conclavePostId;
       if (existingPostId) {
         const existingPost = await context.reddit.getPostById(existingPostId);
@@ -258,7 +258,7 @@ function registerOpenRulebook(): void {
     onPress: async (_event, context) => {
       const sub = await context.reddit.getCurrentSubreddit();
       const post = await context.reddit.submitPost({
-        title: "Memex — Living Rulebook",
+        title: "Memex: Living Rulebook",
         subredditName: sub.name,
         preview: (
           <vstack alignment="middle center" grow padding="medium">
@@ -290,7 +290,7 @@ const seedForm = Devvit.createForm(
   },
   async (event, context) => {
     if (!event.values.confirm) {
-      context.ui.showToast("Cancelled — no data injected.");
+      context.ui.showToast("Cancelled. No data injected.");
       return;
     }
     const count = await seedDemoData(context);

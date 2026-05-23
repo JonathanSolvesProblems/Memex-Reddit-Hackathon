@@ -22,7 +22,7 @@ export async function runOnboarding(context: TriggerContext): Promise<void> {
   // Pin a Living Rulebook hub post.
   try {
     const post = await context.reddit.submitPost({
-      title: "Memex — Living Rulebook",
+      title: "Memex: Living Rulebook",
       subredditName: subName,
       preview: (
         <vstack alignment="middle center" grow padding="medium">
@@ -49,9 +49,9 @@ export async function runOnboarding(context: TriggerContext): Promise<void> {
       bodyMarkdown: [
         "Memex is your mod team's memory. Three quick steps to start:",
         "",
-        "1. **Set your quorum size** — Mod Tools → Memex → Settings. Use 1 to test solo; 3+ for a team.",
-        "2. **Try Decision DNA** — open the `...` menu on any post or comment → *Memex: Decision DNA*. It shows how your team has ruled on similar content.",
-        "3. **Send a borderline item to a Conclave** — `...` menu → *Memex: Send to Conclave*. Your team votes async; consensus auto-executes (bans always need a human click).",
+        "1. **Set your quorum size** in Mod Tools → Memex → Settings. Use 1 to test solo; 3+ for a team.",
+        "2. **Try Decision DNA**: open the `...` menu on any post or comment → *Memex: Decision DNA*. It shows how your team has ruled on similar content.",
+        "3. **Send a borderline item to a Conclave**: `...` menu → *Memex: Send to Conclave*. Your team votes async; consensus auto-executes (bans always need a human click).",
         "",
         "Every decision becomes searchable team memory in the pinned **Living Rulebook**.",
         "",

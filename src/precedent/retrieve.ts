@@ -117,61 +117,48 @@ export async function analyzeDecision(
   };
 }
 
-/** Plain-text "Decision DNA" card for the menu modal (form description). */
+/**
+ * "Decision DNA" card for the menu modal. Form descriptions collapse newlines,
+ * so this reads as clean flowing prose with sentence breaks (no em-dashes).
+ */
 export function formatDecisionDNA(analysis: DecisionAnalysis): string {
   if (analysis.consideredCount === 0) {
-    return "No similar past decisions found.\n\nYour team hasn't ruled on content like this before — this would set the precedent.";
+    return "No similar past decisions found. Your team hasn't ruled on content like this before, so this would set the precedent.";
   }
-  const lines: string[] = [];
   const noun = analysis.consideredCount === 1 ? "decision" : "decisions";
-  lines.push(
-    `Your team has made ${analysis.consideredCount} similar ${noun}.`,
-  );
+  const parts: string[] = [];
+
+  parts.push(`Your team has made ${analysis.consideredCount} similar ${noun}.`);
+
   if (analysis.dominant) {
-    lines.push(
-      `Dominant outcome: ${analysis.dominant.toUpperCase()} — ${analysis.consistencyPct}% consistent.`,
+    parts.push(
+      `Dominant outcome: ${analysis.dominant.toUpperCase()} (${analysis.consistencyPct}% consistent).`,
     );
     if (analysis.consistencyPct < 60) {
-      lines.push(
-        "⚠ Low consistency — your team has handled this kind of content different ways. Worth a Conclave.",
+      parts.push(
+        "Low consistency: the team has handled this kind of content different ways. Worth a Conclave.",
       );
     }
   } else {
-    lines.push(
-      "⚠ Split decision — no dominant outcome. Your team is divided on this kind of content. Worth a Conclave.",
+    parts.push(
+      "Split decision: no dominant outcome, the team is divided. Worth a Conclave.",
     );
   }
-  lines.push("");
-  lines.push("Breakdown:");
-  for (const c of VOTE_CHOICES) {
-    if (analysis.counts[c] > 0) {
-      lines.push(`  • ${c}: ${analysis.counts[c]}`);
-    }
-  }
-  lines.push("");
-  lines.push("Closest matches:");
-  analysis.matches.forEach((m, i) => {
-    const reason = m.precedent.reason ? `  [${m.precedent.reason}]` : "";
-    lines.push(
-      `  ${i + 1}. ${m.precedent.action.toUpperCase()} (${m.similarity.toFixed(0)}%) — ${truncate(m.precedent.contentSnippet, 60)}${reason}`,
-    );
-  });
-  return lines.join("\n");
-}
 
-export function summarizeMatches(matches: PrecedentMatch[]): string {
-  if (matches.length === 0) return "_No similar past decisions found._";
-  return matches
-    .map((m, i) => {
-      const date = new Date(m.precedent.decidedAt).toISOString().slice(0, 10);
-      const reason = m.precedent.reason ? ` — _${m.precedent.reason}_` : "";
-      return (
-        `${i + 1}. **${m.precedent.action.toUpperCase()}** by u/${m.precedent.modName}` +
-        ` on ${date} (${m.similarity.toFixed(0)}% similar)${reason}\n` +
-        `   ↳ [view](${m.precedent.permalink})`
-      );
+  const breakdown = VOTE_CHOICES.filter((c) => analysis.counts[c] > 0)
+    .map((c) => `${analysis.counts[c]} ${c}`)
+    .join(", ");
+  parts.push(`Breakdown: ${breakdown}.`);
+
+  const matches = analysis.matches
+    .map((m) => {
+      const reason = m.precedent.reason ? ` [${m.precedent.reason}]` : "";
+      return `${m.precedent.action.toUpperCase()} ${m.similarity.toFixed(0)}% "${truncate(m.precedent.contentSnippet, 50)}"${reason}`;
     })
-    .join("\n");
+    .join("; ");
+  parts.push(`Closest matches: ${matches}.`);
+
+  return parts.join("\n\n");
 }
 
 function truncate(s: string, n: number): string {

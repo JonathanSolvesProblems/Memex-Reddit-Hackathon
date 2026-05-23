@@ -207,7 +207,7 @@ async function warnAuthor(
   try {
     await context.reddit.modMail.createModInboxConversation({
       subredditId: await getSubredditId(context, conclave.subredditName),
-      subject: `[Memex] Warning issued — ${conclave.targetKind}`,
+      subject: `[Memex] Warning issued: ${conclave.targetKind}`,
       bodyMarkdown:
         `The mod team reached quorum to warn u/${conclave.authorName} ` +
         `regarding [this ${conclave.targetKind}](${conclave.permalink}).\n\n` +

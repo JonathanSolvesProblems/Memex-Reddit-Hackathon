@@ -157,14 +157,14 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   );
 
   if (state.kind === "conclave") {
-    const liveViewers = viewerCount;
     return (
       <ConclaveView
         room={state.room}
-        selected={selected}
-        viewerCount={liveViewers}
-        onSelect={(c) => setSelected(c)}
-        onConfirm={() => context.ui.showForm(reasonForm)}
+        viewerCount={viewerCount}
+        onVote={(c) => {
+          setSelected(c);
+          context.ui.showForm(reasonForm);
+        }}
       />
     );
   }
@@ -184,12 +184,10 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
 
 function ConclaveView(props: {
   room: ConclaveRoomData;
-  selected: VoteChoice | null;
   viewerCount: number;
-  onSelect: (c: VoteChoice) => void;
-  onConfirm: () => void;
+  onVote: (c: VoteChoice) => void;
 }): JSX.Element {
-  const { room, selected } = props;
+  const { room } = props;
   const { conclave } = room;
   const tally = tallyVotes(room.votes);
   const closed = conclave.closed;
@@ -309,7 +307,7 @@ function ConclaveView(props: {
           ))}
         </vstack>
 
-        {/* vote controls */}
+        {/* vote controls — tapping a choice opens the confirm modal directly */}
         {!closed ? (
           <vstack width="100%" gap="small">
             <text size="small" weight="bold" color={C.dim}>
@@ -318,30 +316,22 @@ function ConclaveView(props: {
             <hstack width="100%" gap="small">
               {VOTE_ORDER.map((c) => {
                 const meta = VOTE_META[c];
-                const isSel = selected === c;
                 return (
                   <button
                     key={c}
                     grow
                     icon={meta.icon}
-                    appearance={isSel ? meta.appearance : "bordered"}
-                    onPress={() => props.onSelect(c)}
+                    appearance="bordered"
+                    onPress={() => props.onVote(c)}
                   >
                     {meta.label} {tally[c] > 0 ? `· ${tally[c]}` : ""}
                   </button>
                 );
               })}
             </hstack>
-            <button
-              width="100%"
-              appearance="primary"
-              disabled={!selected}
-              onPress={props.onConfirm}
-            >
-              {selected
-                ? `Confirm: ${VOTE_META[selected].label}`
-                : "Select an option above"}
-            </button>
+            <text size="xsmall" color={C.faint}>
+              Tap a choice to vote (you'll confirm and can add a reason).
+            </text>
           </vstack>
         ) : (
           <vstack
@@ -361,8 +351,8 @@ function ConclaveView(props: {
             conclave.resolution === "escalate" ? (
               <text size="xsmall" color={C.faint} alignment="center" wrap>
                 {conclave.resolution === "escalate"
-                  ? "Team notified via modmail — a senior mod should review (bans require a human click)."
-                  : "Team notified via modmail — no automated removal taken."}
+                  ? "Team notified via modmail. A senior mod should review; bans require a human click."
+                  : "Team notified via modmail. No automated removal taken."}
               </text>
             ) : null}
           </vstack>
@@ -375,7 +365,7 @@ function ConclaveView(props: {
           </text>
           {room.votes.length === 0 ? (
             <text size="small" color={C.faint}>
-              No votes yet — be the first to weigh in.
+              No votes yet. Be the first to weigh in.
             </text>
           ) : (
             room.votes.map((v) => (
@@ -441,7 +431,7 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
         gap="small"
       >
         <text size="small" color={C.faint} wrap>
-          No similar past decisions — this would set the precedent.
+          No similar past decisions. This would set the precedent.
         </text>
       </hstack>
     );
@@ -475,16 +465,16 @@ function ConsistencyBanner(props: { analysis: DecisionAnalysis }): JSX.Element {
       <vstack grow gap="none">
         <text size="small" weight="bold" color={C.text}>
           {split
-            ? "Split decision — no clear pattern"
+            ? "Split decision · no clear pattern"
             : `Team usually: ${meta!.label.toUpperCase()}`}
         </text>
         <text size="xsmall" color={C.faint} wrap>
           {analysis.consideredCount} similar decision
           {analysis.consideredCount === 1 ? "" : "s"} on record
           {split
-            ? " · team is divided — worth a vote"
+            ? " · team is divided, worth a vote"
             : low
-              ? " · low consistency — genuinely borderline"
+              ? " · low consistency, genuinely borderline"
               : ""}
         </text>
       </vstack>
@@ -622,7 +612,7 @@ function RulebookView(props: {
             Living Rulebook
           </text>
           <text size="xsmall" color={C.faint} wrap>
-            The team's applied decisions — not the written rules.
+            The team's applied decisions, not the written rules.
           </text>
         </vstack>
 
@@ -714,7 +704,7 @@ function RulebookView(props: {
             </text>
           ) : (
             props.precedents
-              .slice(0, 10)
+              .slice(0, 6)
               .map((p) => <RulebookRow key={p.id} precedent={p} />)
           )}
         </vstack>

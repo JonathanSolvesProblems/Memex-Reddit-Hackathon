@@ -51,7 +51,7 @@ export async function spawnConclave(
   };
 
   const post = await context.reddit.submitPost({
-    title: `[Memex] Decision needed — ${input.targetKind} by u/${input.authorName}`,
+    title: `[Memex] Decision needed: ${input.targetKind} by u/${input.authorName}`,
     subredditName: input.subredditName,
     preview: (
       <vstack alignment="middle center" grow padding="medium">

@@ -24,7 +24,7 @@ Devvit.addSettings(appSettings);
 
 Devvit.addCustomPostType({
   name: "Memex",
-  description: "Your mod team's memory — decision rooms, precedent recall, and a living rulebook",
+  description: "Your mod team's memory: decision rooms, precedent recall, and a living rulebook",
   height: "tall",
   render: MemexPost,
 });
