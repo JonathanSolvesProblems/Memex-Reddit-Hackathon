@@ -297,6 +297,19 @@ describe("demo seed", () => {
     expect(a.consideredCount).toBeGreaterThan(0);
     expect(a.dominant).toBe("remove");
   });
+
+  it("the seeded split cluster reports no dominant outcome", async () => {
+    const { seedDemoData, SEED_DEMO_PROBES } = await import("../seed.js");
+    const h = fakeContext();
+    await seedDemoData(h.context);
+    const a = await analyzeDecision(h.context, SEED_DEMO_PROBES[1], {
+      limit: 500,
+      minSimilarity: 20,
+      topK: 3,
+    });
+    expect(a.consideredCount).toBeGreaterThanOrEqual(3);
+    expect(a.dominant).toBeUndefined();
+  });
 });
 
 describe("shadow voting → calibration", () => {

@@ -132,8 +132,17 @@ export async function onModActionEvent(
     return;
   }
 
+  // Only learn from human team decisions. Skip the app's own actions and
+  // automated actors (Reddit's reputation filter, AutoModerator) so the
+  // precedent record reflects the team's judgment, not bots.
   const modName = event.moderator?.name ?? "unknown";
-  if (modName === context.appName) return;
+  const automated = new Set([
+    context.appName,
+    "AutoModerator",
+    "reddit",
+    "Anti-EvilOperations",
+  ]);
+  if (automated.has(modName)) return;
 
   const snippet =
     event.targetPost?.title ?? event.targetComment?.body ?? "";

@@ -133,6 +133,31 @@ const SEEDS: Seed[] = [
     reason: "good-faith newcomer question",
     mod: "priya",
   },
+
+  // Genuinely SPLIT cluster — near-identical wording, divided outcomes. The
+  // team has handled "is this political rant allowed" inconsistently, so
+  // Decision DNA should report a split (no dominant outcome).
+  {
+    content:
+      "is this kind of political rant actually allowed in this community or not",
+    action: "keep",
+    reason: "on-topic per rule 2",
+    mod: "maya",
+  },
+  {
+    content:
+      "is this kind of political rant actually allowed in this community honestly",
+    action: "remove",
+    reason: "off-topic political content",
+    mod: "devon",
+  },
+  {
+    content:
+      "is this kind of political rant actually allowed in this community please advise",
+    action: "warn",
+    reason: "borderline, warned the user",
+    mod: "priya",
+  },
 ];
 
 export async function seedDemoData(
@@ -160,7 +185,10 @@ export async function seedDemoData(
 
 /** Probe phrases a demo can run Decision DNA against to show clear patterns. */
 export const SEED_DEMO_PROBES = [
+  // High-consistency REMOVE
   "member dropped an affiliate link with a discount promo code for their store",
-  "this opinion is braindead and you are clueless",
+  // Split decision (no dominant outcome)
+  "is this kind of political rant actually allowed in this community",
+  // Escalate
   "just take megadoses of this supplement instead of seeing a doctor",
 ];

@@ -132,8 +132,12 @@ async function writeModNote(
       note: note.slice(0, 100),
       label: NOTE_LABEL[resolution],
     });
-  } catch {
-    // best-effort: app may lack permission, or user may be deleted
+    console.log(`[Memex modnote] added note on u/${conclave.authorName}`);
+  } catch (e) {
+    console.error(
+      "[Memex modnote] failed:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
 }
 
