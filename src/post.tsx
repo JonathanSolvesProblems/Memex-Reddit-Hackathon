@@ -74,7 +74,7 @@ type QuorumPostState =
 /* ------------------------------- dispatcher ------------------------------ */
 
 type RealtimeMsg =
-  | { kind: "vote" }
+  | { kind: "vote"; t: number }
   | { kind: "presence"; name: string };
 
 const PRESENCE_TTL_MS = 15_000;
@@ -144,7 +144,10 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
       );
       setState(await loadState(context));
       try {
-        await context.realtime.send(channelName, { kind: "vote" });
+        await context.realtime.send(channelName, {
+          kind: "vote",
+          t: Date.now(),
+        });
       } catch {
         // realtime is best-effort; the voter's own view already updated
       }
