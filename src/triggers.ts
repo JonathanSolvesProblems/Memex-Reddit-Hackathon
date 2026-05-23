@@ -43,125 +43,148 @@ export async function onPostSubmit(
   event: PostSubmit,
   context: TriggerContext,
 ): Promise<void> {
-  if (!event.post || !event.author?.name) return;
-  const settings = await loadSettings(context);
-  if (!settings.autoRouteEnabled) return;
+  try {
+    if (!event.post || !event.author?.name) return;
+    const settings = await loadSettings(context);
+    if (!settings.autoRouteEnabled) return;
 
-  const decision = evaluateAutoRoute(
-    {
-      contentText: `${event.post.title ?? ""}\n${event.post.selftext ?? ""}`,
-      authorName: event.author.name,
-      reportCount: 0,
-      authorCreatedAt: await getAuthorCreatedAt(context, event.author.name),
-    },
-    settings,
-    { ignoreReports: true },
-  );
-  if (!decision.route) return;
-  if (await wasRouted(context.redis, event.post.id)) return;
+    const decision = evaluateAutoRoute(
+      {
+        contentText: `${event.post.title ?? ""}\n${event.post.selftext ?? ""}`,
+        authorName: event.author.name,
+        reportCount: 0,
+        authorCreatedAt: await getAuthorCreatedAt(context, event.author.name),
+      },
+      settings,
+      { ignoreReports: true },
+    );
+    if (!decision.route) return;
+    if (await wasRouted(context.redis, event.post.id)) return;
 
-  const sub =
-    event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
-  await spawnConclave(
-    context,
-    {
-      subredditName: sub,
-      targetKind: "post",
-      targetId: event.post.id,
-      authorName: event.author.name,
-      contentSnippet:
-        `${event.post.title ?? ""}\n${event.post.selftext ?? ""}`.trim(),
-      permalink: event.post.permalink ?? "",
-      openedBy: "auto-router",
-      reason: decision.reason,
-    },
-    settings,
-  );
+    const sub =
+      event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
+    await spawnConclave(
+      context,
+      {
+        subredditName: sub,
+        targetKind: "post",
+        targetId: event.post.id,
+        authorName: event.author.name,
+        contentSnippet:
+          `${event.post.title ?? ""}\n${event.post.selftext ?? ""}`.trim(),
+        permalink: event.post.permalink ?? "",
+        openedBy: "auto-router",
+        reason: decision.reason,
+      },
+      settings,
+    );
+  } catch (e) {
+    console.error(
+      "[Memex] onPostSubmit failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
 }
 
 export async function onCommentSubmit(
   event: CommentSubmit,
   context: TriggerContext,
 ): Promise<void> {
-  if (!event.comment || !event.author?.name) return;
-  const settings = await loadSettings(context);
-  if (!settings.autoRouteEnabled) return;
-  if (settings.autoRouteKeywords.length === 0) return;
-  const text = event.comment.body ?? "";
-  const matchedKw = settings.autoRouteKeywords.find((k) =>
-    text.toLowerCase().includes(k),
-  );
-  if (!matchedKw) return;
-  if (await wasRouted(context.redis, event.comment.id)) return;
+  try {
+    if (!event.comment || !event.author?.name) return;
+    const settings = await loadSettings(context);
+    if (!settings.autoRouteEnabled) return;
+    if (settings.autoRouteKeywords.length === 0) return;
+    const text = event.comment.body ?? "";
+    const matchedKw = settings.autoRouteKeywords.find((k) =>
+      text.toLowerCase().includes(k),
+    );
+    if (!matchedKw) return;
+    if (await wasRouted(context.redis, event.comment.id)) return;
 
-  const sub =
-    event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
-  await spawnConclave(
-    context,
-    {
-      subredditName: sub,
-      targetKind: "comment",
-      targetId: event.comment.id,
-      authorName: event.author.name,
-      contentSnippet: text.trim(),
-      permalink: event.comment.permalink ?? "",
-      openedBy: "auto-router",
-      reason: `keyword match: "${matchedKw}"`,
-    },
-    settings,
-  );
+    const sub =
+      event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
+    await spawnConclave(
+      context,
+      {
+        subredditName: sub,
+        targetKind: "comment",
+        targetId: event.comment.id,
+        authorName: event.author.name,
+        contentSnippet: text.trim(),
+        permalink: event.comment.permalink ?? "",
+        openedBy: "auto-router",
+        reason: `keyword match: "${matchedKw}"`,
+      },
+      settings,
+    );
+  } catch (e) {
+    console.error(
+      "[Memex] onCommentSubmit failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
 }
 
 export async function onModActionEvent(
   event: ModAction,
   context: TriggerContext,
 ): Promise<void> {
-  const action = event.action as QuorumModAction | undefined;
-  if (!action) return;
+  try {
+    const action = event.action as QuorumModAction | undefined;
+    if (!action) return;
 
-  let voteAction: VoteChoice | undefined;
-  if (REMOVE_ACTIONS.has(action)) voteAction = "remove";
-  else if (APPROVE_ACTIONS.has(action)) voteAction = "keep";
-  if (!voteAction) return;
+    let voteAction: VoteChoice | undefined;
+    if (REMOVE_ACTIONS.has(action)) voteAction = "remove";
+    else if (APPROVE_ACTIONS.has(action)) voteAction = "keep";
+    if (!voteAction) return;
 
-  const targetId = event.targetPost?.id ?? event.targetComment?.id;
-  if (!targetId) return;
-  const targetKind = event.targetPost?.id ? "post" : "comment";
+    const targetId = event.targetPost?.id ?? event.targetComment?.id;
+    if (!targetId) return;
+    const targetKind = event.targetPost?.id ? "post" : "comment";
 
-  if (await isQuorumOriginated(context, targetId)) {
-    return;
+    if (await isQuorumOriginated(context, targetId)) {
+      return;
+    }
+
+    // Only learn from human team decisions. Skip the app's own actions and
+    // automated actors (Reddit's reputation filter, AutoModerator) so the
+    // precedent record reflects the team's judgment, not bots.
+    const modName = event.moderator?.name ?? "unknown";
+    const automated = new Set([
+      context.appName,
+      "AutoModerator",
+      "reddit",
+      "Anti-EvilOperations",
+    ]);
+    if (automated.has(modName)) return;
+
+    const snippet =
+      event.targetPost?.title ?? event.targetComment?.body ?? "";
+    if (!snippet) return;
+
+    const permalink =
+      event.targetPost?.permalink ?? event.targetComment?.permalink ?? "";
+    const sub =
+      event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
+
+    await recordDecision(context.redis, {
+      id: `solo_${targetId}`,
+      subredditName: sub,
+      targetKind,
+      contentSnippet: snippet,
+      action: voteAction,
+      modName,
+      reason: "",
+      permalink,
+      decidedAt: Date.now(),
+    });
+  } catch (e) {
+    console.error(
+      "[Memex] onModActionEvent failed:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
-
-  // Only learn from human team decisions. Skip the app's own actions and
-  // automated actors (Reddit's reputation filter, AutoModerator) so the
-  // precedent record reflects the team's judgment, not bots.
-  const modName = event.moderator?.name ?? "unknown";
-  const automated = new Set([
-    context.appName,
-    "AutoModerator",
-    "reddit",
-    "Anti-EvilOperations",
-  ]);
-  if (automated.has(modName)) return;
-
-  const snippet =
-    event.targetPost?.title ?? event.targetComment?.body ?? "";
-  if (!snippet) return;
-
-  const permalink = event.targetPost?.permalink ?? event.targetComment?.permalink ?? "";
-  const sub = event.subreddit?.name ?? (await context.reddit.getCurrentSubredditName());
-
-  await recordDecision(context.redis, {
-    id: `solo_${targetId}`,
-    subredditName: sub,
-    targetKind,
-    contentSnippet: snippet,
-    action: voteAction,
-    modName,
-    reason: "",
-    permalink,
-    decidedAt: Date.now(),
-  });
 }
 
 async function isQuorumOriginated(
@@ -223,9 +246,17 @@ export async function onConclaveSweep(
     by: "score",
   });
   for (const entry of expiredIds) {
-    const conclave = await getConclave(context.redis, entry.member);
-    if (!conclave) continue;
-    await closeExpired(context, conclave, settings);
+    try {
+      const conclave = await getConclave(context.redis, entry.member);
+      if (!conclave) continue;
+      await closeExpired(context, conclave, settings);
+    } catch (e) {
+      // One bad conclave (e.g. deleted target) must not wedge the whole sweep.
+      console.error(
+        `[Memex] sweep: failed to close conclave ${entry.member}:`,
+        e instanceof Error ? e.message : String(e),
+      );
+    }
   }
 }
 

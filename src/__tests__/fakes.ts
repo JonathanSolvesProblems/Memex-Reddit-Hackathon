@@ -74,16 +74,26 @@ export class FakeRedis {
   }
   async zRange(
     key: string,
-    min: number,
-    max: number,
-    _opts?: { by?: string },
+    start: number,
+    stop: number,
+    opts?: { by?: string; reverse?: boolean },
   ): Promise<ZEntry[]> {
     const z = this.zsets.get(key);
     if (!z) return [];
-    return [...z.entries()]
-      .map(([member, score]) => ({ member, score }))
-      .filter((e) => e.score >= min && e.score <= max)
+    const all = [...z.entries()].map(([member, score]) => ({ member, score }));
+    if (opts?.by === "rank") {
+      // start/stop are indices into the (optionally reversed) score order.
+      all.sort((a, b) => (opts.reverse ? b.score - a.score : a.score - b.score));
+      return all.slice(start, stop + 1);
+    }
+    // by score (default): start/stop are score bounds.
+    const inRange = all
+      .filter((e) => e.score >= start && e.score <= stop)
       .sort((a, b) => a.score - b.score);
+    return opts?.reverse ? inRange.reverse() : inRange;
+  }
+  async zCard(key: string): Promise<number> {
+    return this.zsets.get(key)?.size ?? 0;
   }
   async zRemRangeByScore(
     key: string,

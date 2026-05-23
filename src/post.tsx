@@ -16,6 +16,7 @@ import {
   getVotes,
   isShadowMod,
   listOpenConclaves,
+  precedentCount,
   recentPrecedentIds,
   tallyVotes,
   touchViewer,
@@ -348,12 +349,21 @@ function ConclaveView(props: {
             cornerRadius="medium"
             backgroundColor={C.cardAlt}
             alignment="middle center"
+            gap="none"
           >
             <text size="small" color={C.dim}>
               {conclave.resolution
                 ? `Resolved: ${VOTE_META[conclave.resolution].label.toUpperCase()}`
                 : "Closed with no decision"}
             </text>
+            {conclave.resolution === "warn" ||
+            conclave.resolution === "escalate" ? (
+              <text size="xsmall" color={C.faint} alignment="center" wrap>
+                {conclave.resolution === "escalate"
+                  ? "Team notified via modmail — a senior mod should review (bans require a human click)."
+                  : "Team notified via modmail — no automated removal taken."}
+              </text>
+            ) : null}
           </vstack>
         )}
 
@@ -756,10 +766,10 @@ async function loadState(context: Context): Promise<QuorumPostState> {
 
   const isRulebook = await context.redis.get(`rulebook-post:${postId}`);
   if (isRulebook) {
-    const allIds = await recentPrecedentIds(context.redis, 100000);
-    const total = allIds.length;
+    const total = await precedentCount(context.redis);
+    const ids = await recentPrecedentIds(context.redis, 100);
     const precedents: Precedent[] = [];
-    for (const id of allIds.slice(0, 100)) {
+    for (const id of ids) {
       const p = await getPrecedent(context.redis, id);
       if (p) precedents.push(p);
     }

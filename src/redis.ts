@@ -50,12 +50,12 @@ export async function countActiveViewers(
   conclaveId: string,
 ): Promise<number> {
   const now = Date.now();
-  const entries = await redis.zRange(
-    K.viewing(conclaveId),
-    now - VIEW_WINDOW_MS,
-    now,
-    { by: "score" },
-  );
+  const cutoff = now - VIEW_WINDOW_MS;
+  // Opportunistically drop stale heartbeats so the key never grows unbounded.
+  await redis.zRemRangeByScore(K.viewing(conclaveId), 0, cutoff - 1);
+  const entries = await redis.zRange(K.viewing(conclaveId), cutoff, now, {
+    by: "score",
+  });
   return new Set(entries.map((e) => e.member)).size;
 }
 
@@ -155,14 +155,18 @@ export async function recentPrecedentIds(
   redis: RedisClient,
   limit: number,
 ): Promise<string[]> {
-  const now = Date.now();
-  const entries = await redis.zRange(K.precedentIndex(), 0, now, {
-    by: "score",
+  if (limit <= 0) return [];
+  // Bounded read: the `limit` highest-scored (most recent) members, newest
+  // first — no full-index load even on very large subreddits.
+  const entries = await redis.zRange(K.precedentIndex(), 0, limit - 1, {
+    reverse: true,
+    by: "rank",
   });
-  return entries
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((e) => e.member);
+  return entries.map((e) => e.member);
+}
+
+export async function precedentCount(redis: RedisClient): Promise<number> {
+  return redis.zCard(K.precedentIndex());
 }
 
 export async function getPrecedentTokens(

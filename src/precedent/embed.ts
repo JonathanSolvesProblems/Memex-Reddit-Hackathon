@@ -14,7 +14,9 @@ export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/https?:\/\/\S+/g, " url ")
-    .replace(/[^a-z0-9\s]/g, " ")
+    // Keep letters/numbers from any language (not just a-z) so the precedent
+    // engine works on non-English subreddits too.
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((t) => t.length >= 3 && !STOPWORDS.has(t))
     .map(stem);
@@ -33,7 +35,7 @@ export function trigrams(text: string): Set<string> {
   const normalized = text
     .toLowerCase()
     .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9 ]/g, "");
+    .replace(/[^\p{L}\p{N} ]/gu, "");
   const grams = new Set<string>();
   for (let i = 0; i < normalized.length - 2; i++) {
     grams.add(normalized.slice(i, i + 3));

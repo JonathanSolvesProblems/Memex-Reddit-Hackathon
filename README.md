@@ -28,7 +28,7 @@ Borderline items become mod-only decision rooms. Mods vote
 `Remove | Keep | Warn | Escalate`; when quorum is reached, the consensus action
 auto-executes for reversible actions. **Bans never auto-execute** — they
 surface as a recommendation requiring a human click (per Reddit's 2026 admin
-policy on ban bots). Votes and quorum update **live** across every mod viewing
+policy on ban bots). Votes and quorum update **live** (a lightweight poll) across every mod viewing
 the room, with a presence indicator showing who else is reviewing.
 
 ### 3. Calibration (consistent onboarding)
@@ -41,8 +41,8 @@ absorb the team's standards instead of guessing for six months.
 The "shared mod workspace / coordination" space is crowded. Memex's
 **institutional-memory layer is not**: no other tool surfaces *how your team
 decided on similar content* at decision time, scores decision consistency, or
-calibrates new mods against the team's real pattern. The voting + realtime is
-the delivery mechanism; the memory is the moat.
+calibrates new mods against the team's real pattern. The voting + live updates
+are the delivery mechanism; the memory is the moat.
 
 ## Rule compliance
 
@@ -66,7 +66,7 @@ src/
   precedent/              # tokenize + similarity, analyzeDecision (Decision DNA), retrieval
   calibration/            # weekly divergence digest
   triggers.ts             # event handlers
-  __tests__/              # 27 tests: logic + full pipeline against in-memory fakes
+  __tests__/              # 35 tests: logic + full pipeline against in-memory fakes
 ```
 
 ## Development
@@ -81,6 +81,6 @@ npm run test
 
 ## Status
 
-Core verified live on Reddit infra and in 27 automated tests (vote → quorum →
+Core verified live on Reddit infra and in 35 automated tests (vote → quorum →
 consensus execution → precedent recording → Decision DNA retrieval →
 calibration logging). Typecheck and tests green.

@@ -85,7 +85,18 @@ export async function resolveConclave(
   conclave.closed = true;
   conclave.resolution = resolution;
   await saveConclave(context.redis, conclave);
-  await executeResolution(context, conclave, resolution, settings);
+
+  // Executing the action is best-effort: the target may have been deleted or
+  // already actioned. Either way the team's DECISION is real and must still be
+  // recorded as precedent — so never let a failed action skip the steps below.
+  try {
+    await executeResolution(context, conclave, resolution, settings);
+  } catch (e) {
+    console.error(
+      "[Memex] executeResolution failed (recording decision anyway):",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
 
   const topReason = pickTopReason(votes, resolution);
   await recordDecision(context.redis, {
