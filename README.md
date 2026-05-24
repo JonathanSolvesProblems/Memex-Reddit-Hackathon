@@ -71,7 +71,9 @@ consistency to flag). This catches what the team missed.
   setup modmail.
 - **Auto-routing:** optionally route new content to a Conclave by keyword or
   account age.
-- **Demo seed:** a mod menu action populates realistic decisions for evaluation.
+- **Demo data:** one mod-menu picker seeds (or clears) realistic decisions for
+  evaluation; seeding is idempotent, so re-running resets the demo set instead
+  of duplicating.
 
 ## Why it's defensibly different
 
@@ -101,7 +103,7 @@ on a lightweight 2s `useInterval` poll backed by a Redis sorted set.
 src/
   main.tsx        # entry; registers the post type, triggers, scheduler, menu
   post.tsx        # custom post: Conclave room + Living Rulebook (one dispatcher)
-  menu.tsx        # Send to Conclave, Decision DNA, shadow toggle, Rulebook, seed
+  menu.tsx        # Send to Conclave, Decision DNA, sweep, calibration digest, shadow, Rulebook, demo data
   settings.ts     # mod-configurable settings
   redis.ts        # persistence: conclaves, votes, precedents, calibration, presence
   conclave/       # routing, vote tally + consensus execution, room spawn
