@@ -170,6 +170,21 @@ export async function precedentCount(redis: RedisClient): Promise<number> {
   return redis.zCard(K.precedentIndex());
 }
 
+/**
+ * Accurate count of decisions recorded at or after `since`, read straight from
+ * the timestamp-scored index (no full-history load). Used for the Rulebook's
+ * "this week" stat so it stays exact even past the loaded-precedent window.
+ */
+export async function precedentCountSince(
+  redis: RedisClient,
+  since: number,
+): Promise<number> {
+  const entries = await redis.zRange(K.precedentIndex(), since, Number.MAX_SAFE_INTEGER, {
+    by: "score",
+  });
+  return entries.length;
+}
+
 export async function getPrecedentTokens(
   redis: RedisClient,
   id: string,

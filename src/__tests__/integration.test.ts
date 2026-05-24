@@ -6,6 +6,7 @@ import {
   getCalibrationFor,
   setShadowMod,
   listShadowMods,
+  precedentCountSince,
 } from "../redis.js";
 import { runWeeklyDigest } from "../calibration/digest.js";
 import { submitVote, closeExpired } from "../conclave/vote.js";
@@ -395,6 +396,28 @@ describe("demo seed", () => {
     });
     expect(a.consideredCount).toBeGreaterThanOrEqual(3);
     expect(a.dominant).toBeUndefined();
+  });
+
+  it("counts this-week decisions accurately from the index, past the loaded window", async () => {
+    const h = fakeContext();
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    // 3 within the last week, 2 older.
+    for (const offset of [1, 3, 6, 10, 40]) {
+      await recordDecision(h.redis, {
+        id: `p_${offset}`,
+        subredditName: "s",
+        targetKind: "post",
+        contentSnippet: "x",
+        action: "remove",
+        modName: "m",
+        reason: "",
+        permalink: "",
+        decidedAt: now - offset * day,
+      });
+    }
+    const weekAgo = now - 7 * day;
+    expect(await precedentCountSince(h.redis, weekAgo)).toBe(3);
   });
 
   it("seeds a calibration trail for the current mod so the digest is testable solo", async () => {

@@ -17,6 +17,7 @@ import {
   isShadowMod,
   listOpenConclaves,
   precedentCount,
+  precedentCountSince,
   recentPrecedentIds,
   tallyVotes,
   touchViewer,
@@ -71,6 +72,7 @@ type QuorumPostState =
       kind: "rulebook";
       precedents: Precedent[];
       total: number;
+      thisWeek: number;
       openConclaves: number;
     }
   | { kind: "unknown" };
@@ -186,6 +188,7 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
       <RulebookView
         precedents={state.precedents}
         total={state.total}
+        thisWeek={state.thisWeek}
         openConclaves={state.openConclaves}
         filter={rbFilter}
         page={rbPage}
@@ -624,6 +627,7 @@ function StatTile(props: { value: string; label: string }): JSX.Element {
 function RulebookView(props: {
   precedents: Precedent[];
   total: number;
+  thisWeek: number;
   openConclaves: number;
   filter: VoteChoice | "all";
   page: number;
@@ -642,9 +646,6 @@ function RulebookView(props: {
   };
   for (const p of props.precedents) totals[p.action] += 1;
   const loaded = props.precedents.length;
-  const thisWeek = props.precedents.filter(
-    (p) => p.decidedAt >= Date.now() - 7 * 24 * 60 * 60 * 1000,
-  ).length;
   const bins = decisionsByDay(props.precedents, 7);
   const binMax = Math.max(1, ...bins);
 
@@ -674,7 +675,7 @@ function RulebookView(props: {
         </text>
         <hstack width="100%" gap="small">
           <StatTile value={`${props.total}`} label="DECISIONS" />
-          <StatTile value={`${thisWeek}`} label="THIS WEEK" />
+          <StatTile value={`${props.thisWeek}`} label="THIS WEEK" />
           <StatTile value={`${props.openConclaves}`} label="OPEN" />
         </hstack>
 
@@ -932,7 +933,9 @@ async function loadState(context: Context): Promise<QuorumPostState> {
   const isRulebook = await context.redis.get(`rulebook-post:${postId}`);
   if (isRulebook) {
     const total = await precedentCount(context.redis);
-    const ids = await recentPrecedentIds(context.redis, 100);
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const thisWeek = await precedentCountSince(context.redis, weekAgo);
+    const ids = await recentPrecedentIds(context.redis, 300);
     const precedents: Precedent[] = [];
     for (const id of ids) {
       const p = await getPrecedent(context.redis, id);
@@ -942,7 +945,7 @@ async function loadState(context: Context): Promise<QuorumPostState> {
     const openConclaves = (
       await listOpenConclaves(context.redis, Number.MAX_SAFE_INTEGER)
     ).length;
-    return { kind: "rulebook", precedents, total, openConclaves };
+    return { kind: "rulebook", precedents, total, thisWeek, openConclaves };
   }
 
   return { kind: "unknown" };
