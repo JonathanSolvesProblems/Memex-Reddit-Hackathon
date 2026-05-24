@@ -5,7 +5,9 @@ import {
   getConclave,
   getCalibrationFor,
   setShadowMod,
+  listShadowMods,
 } from "../redis.js";
+import { runWeeklyDigest } from "../calibration/digest.js";
 import { submitVote, closeExpired } from "../conclave/vote.js";
 import {
   recordDecision,
@@ -370,8 +372,8 @@ describe("demo seed", () => {
   it("injects decisions that produce a clear Decision DNA pattern", async () => {
     const { seedDemoData, SEED_DEMO_PROBES } = await import("../seed.js");
     const h = fakeContext();
-    const n = await seedDemoData(h.context);
-    expect(n).toBeGreaterThanOrEqual(12);
+    const { decisions } = await seedDemoData(h.context);
+    expect(decisions).toBeGreaterThanOrEqual(12);
 
     const a = await analyzeDecision(h.context, SEED_DEMO_PROBES[0], {
       limit: 500,
@@ -393,6 +395,27 @@ describe("demo seed", () => {
     });
     expect(a.consideredCount).toBeGreaterThanOrEqual(3);
     expect(a.dominant).toBeUndefined();
+  });
+
+  it("seeds a calibration trail for the current mod so the digest is testable solo", async () => {
+    const { seedDemoData } = await import("../seed.js");
+    const h = fakeContext();
+    const { shadowMod } = await seedDemoData(h.context);
+
+    expect(shadowMod).toBe("Competitive_Good900");
+    expect(await listShadowMods(h.redis)).toContain("Competitive_Good900");
+
+    const records = await getCalibrationFor(h.redis, "Competitive_Good900");
+    expect(records.length).toBeGreaterThanOrEqual(5);
+    expect(records.some((r) => !r.agreed)).toBe(true);
+
+    // The weekly digest should now render and modmail the calibration summary.
+    await runWeeklyDigest({} as never, h.context as never);
+    const digest = h.reddit.actions.modmails.find((m) =>
+      m.subject.includes("calibration digest"),
+    );
+    expect(digest).toBeDefined();
+    expect(digest?.bodyMarkdown).toContain("Agreement with team consensus");
   });
 });
 

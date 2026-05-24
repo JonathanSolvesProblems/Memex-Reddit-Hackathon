@@ -300,6 +300,30 @@ function registerRunSweep(): void {
   });
 }
 
+function registerSendCalibrationDigest(): void {
+  Devvit.addMenuItem({
+    label: "Memex: Send calibration digest now",
+    location: "subreddit",
+    forUserType: "moderator",
+    onPress: async (_event, context) => {
+      const shadows = await listShadowMods(context.redis);
+      if (shadows.length === 0) {
+        context.ui.showToast(
+          "No shadow mods yet. Put a mod in shadow mode (or seed demo data) first.",
+        );
+        return;
+      }
+      await context.scheduler.runJob({
+        name: "weeklyCalibrationDigest",
+        runAt: new Date(),
+      });
+      context.ui.showToast(
+        "Calibration digest started. Check modmail for each shadow mod with recent activity.",
+      );
+    },
+  });
+}
+
 const seedForm = Devvit.createForm(
   {
     title: "Seed demo data",
@@ -320,9 +344,11 @@ const seedForm = Devvit.createForm(
       context.ui.showToast("Cancelled. No data injected.");
       return;
     }
-    const count = await seedDemoData(context);
+    const { decisions, shadowMod } = await seedDemoData(context);
     context.ui.showToast(
-      `Injected ${count} demo decisions. Try Decision DNA on similar content.`,
+      shadowMod
+        ? `Injected ${decisions} decisions + a calibration trail. You're now a demo shadow mod: run "Send calibration digest now", then graduate via "Toggle shadow mode".`
+        : `Injected ${decisions} demo decisions. Try Decision DNA on similar content.`,
     );
   },
 );
@@ -342,6 +368,7 @@ export function registerMenu(): void {
   registerSendToConclave();
   registerDecisionDNA();
   registerRunSweep();
+  registerSendCalibrationDigest();
   registerSeedDemo();
   registerToggleShadow();
   registerOpenRulebook();

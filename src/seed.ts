@@ -1,5 +1,6 @@
 import type { TriggerContext } from "@devvit/public-api";
 import { recordDecision } from "./precedent/retrieve.js";
+import { recordCalibration, setShadowMod } from "./redis.js";
 import type { TargetKind, VoteChoice } from "./types.js";
 
 type Seed = {
@@ -160,11 +161,28 @@ const SEEDS: Seed[] = [
   },
 ];
 
+/**
+ * Demo calibration trail for the seeding mod: a realistic mix of agreement and
+ * divergence over the past week, so the weekly calibration digest has content
+ * to render the instant it's run (it otherwise needs a resolved conclave that
+ * contains a shadow vote, which can't be produced from a single account).
+ */
+const CALIB_TRAIL: { shadow: VoteChoice; team: VoteChoice; daysAgo: number }[] = [
+  { shadow: "remove", team: "remove", daysAgo: 1 },
+  { shadow: "keep", team: "remove", daysAgo: 2 },
+  { shadow: "warn", team: "remove", daysAgo: 3 },
+  { shadow: "remove", team: "remove", daysAgo: 4 },
+  { shadow: "keep", team: "keep", daysAgo: 5 },
+];
+
+export type SeedResult = { decisions: number; shadowMod?: string };
+
 export async function seedDemoData(
-  context: Pick<TriggerContext, "redis">,
-): Promise<number> {
+  context: Pick<TriggerContext, "redis" | "reddit">,
+): Promise<SeedResult> {
   const now = Date.now();
   const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
   let i = 0;
   for (const s of SEEDS) {
     await recordDecision(context.redis, {
@@ -180,7 +198,32 @@ export async function seedDemoData(
     });
     i++;
   }
-  return SEEDS.length;
+
+  // Seed a calibration trail for the current mod and put them in shadow mode,
+  // so the weekly calibration digest is testable in one click solo.
+  let shadowMod: string | undefined;
+  try {
+    shadowMod = (await context.reddit.getCurrentUser())?.username;
+    if (shadowMod) {
+      await setShadowMod(context.redis, shadowMod, true);
+      let j = 0;
+      for (const c of CALIB_TRAIL) {
+        await recordCalibration(context.redis, {
+          modName: shadowMod,
+          conclaveId: `seed_calib_${now.toString(36)}_${j}`,
+          shadowChoice: c.shadow,
+          teamChoice: c.team,
+          agreed: c.shadow === c.team,
+          recordedAt: now - c.daysAgo * day,
+        });
+        j++;
+      }
+    }
+  } catch {
+    // best-effort; the precedent seed above is the important part
+  }
+
+  return { decisions: SEEDS.length, shadowMod };
 }
 
 /** Probe phrases a demo can run Decision DNA against to show clear patterns. */

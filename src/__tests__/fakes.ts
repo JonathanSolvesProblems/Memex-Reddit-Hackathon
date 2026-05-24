@@ -149,6 +149,11 @@ export class FakeReddit {
   };
   modNotes: RecordedModNote[] = [];
   newPosts: FakeScanPost[] = [];
+  currentUsername = "Competitive_Good900";
+
+  async getCurrentUser() {
+    return { id: "t2_fake", username: this.currentUsername };
+  }
 
   getNewPosts(opts?: { subredditName?: string; limit?: number }) {
     const limit = opts?.limit ?? 100;
@@ -196,6 +201,9 @@ export class FakeReddit {
   }
   async getCurrentSubredditName() {
     return "JonathanSolvesProblem";
+  }
+  async getCurrentSubreddit() {
+    return { id: "t5_fake", name: "JonathanSolvesProblem" };
   }
   modMail = {
     createModInboxConversation: async (args: {

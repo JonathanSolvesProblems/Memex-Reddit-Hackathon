@@ -49,8 +49,9 @@ a 7-day activity sparkline. It's interactive: **tap an outcome to filter**,
 
 ### Calibration (consistent onboarding)
 New mods cast **shadow votes** that are logged but don't count toward quorum. A
-weekly digest shows where they diverged from team consensus and why, so they
-absorb the team's standards in weeks instead of months.
+weekly digest (or one sent on demand from the mod menu) shows where they
+diverged from team consensus and why, so they absorb the team's standards in
+weeks instead of months.
 
 ### Consistency Sweep (retrospective audit)
 On demand or **automatically once a day**, Memex scans recent live posts and
@@ -111,7 +112,7 @@ src/
   onboard.tsx     # first-run onboarding
   triggers.ts     # PostSubmit / CommentSubmit / ModAction / ModMail / install
   seed.ts         # demo data
-  __tests__/      # 51 tests: logic + full pipeline against in-memory fakes
+  __tests__/      # 52 tests: logic + full pipeline against in-memory fakes
 ```
 
 ## Development
@@ -126,7 +127,7 @@ npm run test
 
 ## Status
 
-Core flows verified live on Reddit and by **51 automated tests** (vote, quorum,
+Core flows verified live on Reddit and by **52 automated tests** (vote, quorum,
 consensus execution, precedent recording, Decision DNA retrieval, split
 detection, link-domain matching, calibration logging). TypeScript typecheck and
 the full suite are green. Destructive paths are guarded against
