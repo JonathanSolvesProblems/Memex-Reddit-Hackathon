@@ -61,40 +61,50 @@ export async function runConsistencySweep(
   let reported = 0;
 
   for (const post of posts) {
-    // Only audit live, un-actioned content.
-    if (post.removed || post.spam || post.approved) continue;
-    if (await wasSweepReported(context.redis, post.id)) continue;
+    try {
+      // Only audit live, un-actioned content.
+      if (post.removed || post.spam || post.approved) continue;
+      if (await wasSweepReported(context.redis, post.id)) continue;
 
-    const domain = externalDomain(post.url);
-    const snippet =
-      `${post.title ?? ""}\n${post.body ?? ""}${domain ? `\n${domain}` : ""}`.trim();
-    if (!snippet) continue;
+      const domain = externalDomain(post.url);
+      const snippet =
+        `${post.title ?? ""}\n${post.body ?? ""}${domain ? `\n${domain}` : ""}`.trim();
+      if (!snippet) continue;
 
-    const analysis = await analyzeDecision(context, snippet, {
-      limit: settings.precedentLimit,
-      minSimilarity: settings.precedentMinSimilarity,
-      topK: 3,
-      // Don't let the item match its own solo precedent if one exists.
-      excludeTargetIds: [`solo_${post.id}`],
-    });
+      const analysis = await analyzeDecision(context, snippet, {
+        limit: settings.precedentLimit,
+        minSimilarity: settings.precedentMinSimilarity,
+        topK: 3,
+        // Don't let the item match its own solo precedent if one exists.
+        excludeTargetIds: [`solo_${post.id}`],
+      });
 
-    if (!shouldFlag(analysis, settings.sweepMinConsistency, settings.sweepIncludeWarn)) {
-      continue;
-    }
+      if (
+        !shouldFlag(
+          analysis,
+          settings.sweepMinConsistency,
+          settings.sweepIncludeWarn,
+        )
+      ) {
+        continue;
+      }
 
-    await markSweepReported(context.redis, post.id);
-    flagged.push({ post, analysis });
+      await markSweepReported(context.redis, post.id);
+      flagged.push({ post, analysis });
 
-    if (settings.sweepReportToQueue) {
-      try {
+      if (settings.sweepReportToQueue) {
         const dom = analysis.dominant ?? "remove";
         await context.reddit.report(post as never, {
           reason: `Memex: matches ${analysis.counts[dom]} past ${dom.toUpperCase()} decisions (${analysis.consistencyPct}% consistent)`,
         });
         reported += 1;
-      } catch {
-        // reporting is best-effort
       }
+    } catch (e) {
+      // One bad post (transient Redis/API error) must not wedge the sweep.
+      console.error(
+        `[Memex sweep] skipped post ${post.id}:`,
+        e instanceof Error ? e.message : String(e),
+      );
     }
   }
 
