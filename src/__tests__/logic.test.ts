@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { tokenize, tokenSimilarity, fingerprint } from "../precedent/embed.js";
+import {
+  tokenize,
+  tokenSimilarity,
+  fingerprint,
+  externalDomain,
+} from "../precedent/embed.js";
 import { tallyVotes } from "../redis.js";
 import { evaluateAutoRoute } from "../conclave/router.js";
 import { decisionsByDay, outcomeCounts } from "../stats.js";
@@ -76,6 +81,26 @@ describe("outcomeCounts", () => {
       prec(4, "warn"),
     ]);
     expect(c).toEqual({ remove: 2, keep: 1, warn: 1, escalate: 0 });
+  });
+});
+
+describe("externalDomain", () => {
+  it("extracts external domains and strips www", () => {
+    expect(externalDomain("https://www.beacons.ai/foo")).toBe("beacons.ai");
+    expect(externalDomain("https://youtube.com/watch?v=x")).toBe("youtube.com");
+  });
+  it("ignores reddit self-post urls and bad input", () => {
+    expect(externalDomain("https://www.reddit.com/r/x/comments/1/abc")).toBe("");
+    expect(externalDomain("https://redd.it/abc")).toBe("");
+    expect(externalDomain(undefined)).toBe("");
+    expect(externalDomain("not a url")).toBe("");
+  });
+  it("makes two posts linking the same domain matchable", () => {
+    const a = tokenize(`buy followers ${externalDomain("https://beacons.ai/x")}`);
+    const b = tokenize(`cheap likes ${externalDomain("https://www.beacons.ai/y")}`);
+    // "beacons" stems to "beacon"; the shared domain token makes them match.
+    expect(a).toContain("beacon");
+    expect(b).toContain("beacon");
   });
 });
 

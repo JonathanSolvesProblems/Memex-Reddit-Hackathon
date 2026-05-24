@@ -31,6 +31,25 @@ function stem(token: string): string {
   return token;
 }
 
+/**
+ * The external domain of a link post (e.g. "beacons.ai"), or "" for self/text
+ * posts and reddit-internal URLs. Folding this into the content lets Decision
+ * DNA recognize "we've removed links to this domain before" — the #1 spam
+ * vector — without analyzing the linked page.
+ */
+export function externalDomain(url: string | undefined | null): string {
+  if (!url) return "";
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (!host || /(^|\.)reddit\.com$/.test(host) || /(^|\.)redd\.it$/.test(host)) {
+      return "";
+    }
+    return host;
+  } catch {
+    return "";
+  }
+}
+
 export function trigrams(text: string): Set<string> {
   const normalized = text
     .toLowerCase()
