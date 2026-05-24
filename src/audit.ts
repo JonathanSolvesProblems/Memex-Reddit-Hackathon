@@ -124,12 +124,15 @@ async function sendSweepDigest(
   flagged: { post: ScanPost; analysis: DecisionAnalysis }[],
   reported: number,
 ): Promise<void> {
+  const n = flagged.length;
   const lines: string[] = [];
   lines.push(
-    `Memex Consistency Sweep scanned ${scanned} recent posts and found ${flagged.length} that look similar to content your team has acted on before but are still live.`,
+    `Memex Consistency Sweep scanned ${scanned} recent post${scanned === 1 ? "" : "s"} and found ${n} ${n === 1 ? "item that looks" : "items that look"} similar to content your team has acted on before but ${n === 1 ? "is" : "are"} still live.`,
   );
   if (reported > 0) {
-    lines.push(`${reported} have been reported into your modqueue for review.`);
+    lines.push(
+      `${reported} ${reported === 1 ? "has" : "have"} been reported into your modqueue for review.`,
+    );
   }
   lines.push("");
   for (const f of flagged.slice(0, 25)) {
