@@ -50,6 +50,30 @@ export function externalDomain(url: string | undefined | null): string {
   }
 }
 
+/**
+ * The single source of truth for turning a post into matchable content:
+ * title + body + any external link domains (from a link post's URL and from
+ * URLs inside the body). Folding domains in as plain text lets the precedent
+ * engine recognize repeat spam/affiliate domains. Used everywhere a post is
+ * recorded as a precedent OR queried, so recording and lookup always agree.
+ */
+export function buildPostSnippet(p: {
+  title?: string | null;
+  body?: string | null;
+  url?: string | null;
+}): string {
+  const domains = new Set<string>();
+  const top = externalDomain(p.url);
+  if (top) domains.add(top);
+  for (const m of (p.body ?? "").matchAll(/https?:\/\/\S+/g)) {
+    const d = externalDomain(m[0]);
+    if (d) domains.add(d);
+  }
+  const base = `${p.title ?? ""}\n${p.body ?? ""}`.trim();
+  const domainStr = [...domains].join(" ");
+  return domainStr ? `${base}\n${domainStr}`.trim() : base;
+}
+
 export function trigrams(text: string): Set<string> {
   const normalized = text
     .toLowerCase()

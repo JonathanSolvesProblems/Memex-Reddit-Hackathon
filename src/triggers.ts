@@ -27,6 +27,7 @@ import { getConclave, K, wasRouted } from "./redis.js";
 import { loadSettings } from "./settings.js";
 import { runOnboarding } from "./onboard.js";
 import { runConsistencySweep } from "./audit.js";
+import { buildPostSnippet } from "./precedent/embed.js";
 import type { ModAction as QuorumModAction, VoteChoice } from "./types.js";
 
 const REMOVE_ACTIONS = new Set<QuorumModAction>([
@@ -71,8 +72,11 @@ export async function onPostSubmit(
         targetKind: "post",
         targetId: event.post.id,
         authorName: event.author.name,
-        contentSnippet:
-          `${event.post.title ?? ""}\n${event.post.selftext ?? ""}`.trim(),
+        contentSnippet: buildPostSnippet({
+          title: event.post.title,
+          body: event.post.selftext,
+          url: event.post.url,
+        }),
         permalink: event.post.permalink ?? "",
         openedBy: "auto-router",
         reason: decision.reason,
@@ -160,8 +164,13 @@ export async function onModActionEvent(
     ]);
     if (automated.has(modName)) return;
 
-    const snippet =
-      event.targetPost?.title ?? event.targetComment?.body ?? "";
+    const snippet = event.targetPost
+      ? buildPostSnippet({
+          title: event.targetPost.title,
+          body: event.targetPost.selftext,
+          url: event.targetPost.url,
+        })
+      : (event.targetComment?.body ?? "");
     if (!snippet) return;
 
     const permalink =

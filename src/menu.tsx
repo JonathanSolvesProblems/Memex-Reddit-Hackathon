@@ -2,7 +2,7 @@ import { Devvit } from "@devvit/public-api";
 import type { Context, MenuItemOnPressEvent } from "@devvit/public-api";
 import { spawnConclave } from "./conclave/spawn.js";
 import { analyzeDecision, formatDecisionDNA } from "./precedent/retrieve.js";
-import { externalDomain } from "./precedent/embed.js";
+import { buildPostSnippet } from "./precedent/embed.js";
 import { seedDemoData } from "./seed.js";
 import {
   isShadowMod,
@@ -66,9 +66,11 @@ async function openConclaveFor(
     if (targetKind === "post") {
       const post = await context.reddit.getPostById(targetId);
       authorName = post.authorName;
-      const domain = externalDomain(post.url);
-      const body = (post as unknown as { body?: string }).body ?? "";
-      contentSnippet = `${post.title}\n${body}${domain ? `\n${domain}` : ""}`;
+      contentSnippet = buildPostSnippet({
+        title: post.title,
+        body: (post as unknown as { body?: string }).body,
+        url: post.url,
+      });
       permalink = post.permalink;
     } else {
       const comment = await context.reddit.getCommentById(targetId);
@@ -162,9 +164,11 @@ function registerDecisionDNA(): void {
       let snippet = "";
       if (targetKindFromId(targetId) === "post") {
         const post = await context.reddit.getPostById(targetId);
-        const domain = externalDomain(post.url);
-        const body = (post as unknown as { body?: string }).body ?? "";
-        snippet = `${post.title}\n${body}${domain ? `\n${domain}` : ""}`;
+        snippet = buildPostSnippet({
+          title: post.title,
+          body: (post as unknown as { body?: string }).body,
+          url: post.url,
+        });
       } else {
         const comment = await context.reddit.getCommentById(targetId);
         snippet = comment.body;

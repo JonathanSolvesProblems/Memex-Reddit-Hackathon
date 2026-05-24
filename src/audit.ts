@@ -2,7 +2,7 @@ import type { JobContext, TriggerContext } from "@devvit/public-api";
 import type { DecisionAnalysis } from "./types.js";
 import type { QuorumSettings } from "./settings.js";
 import { analyzeDecision } from "./precedent/retrieve.js";
-import { externalDomain } from "./precedent/embed.js";
+import { buildPostSnippet } from "./precedent/embed.js";
 import { markSweepReported, wasSweepReported } from "./redis.js";
 
 export type SweepResult = {
@@ -66,9 +66,11 @@ export async function runConsistencySweep(
       if (post.removed || post.spam || post.approved) continue;
       if (await wasSweepReported(context.redis, post.id)) continue;
 
-      const domain = externalDomain(post.url);
-      const snippet =
-        `${post.title ?? ""}\n${post.body ?? ""}${domain ? `\n${domain}` : ""}`.trim();
+      const snippet = buildPostSnippet({
+        title: post.title,
+        body: post.body,
+        url: post.url,
+      });
       if (!snippet) continue;
 
       const analysis = await analyzeDecision(context, snippet, {

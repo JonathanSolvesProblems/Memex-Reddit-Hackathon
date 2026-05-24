@@ -110,7 +110,7 @@ src/
   onboard.tsx     # first-run onboarding
   triggers.ts     # PostSubmit / CommentSubmit / ModAction / ModMail / install
   seed.ts         # demo data
-  __tests__/      # 48 tests: logic + full pipeline against in-memory fakes
+  __tests__/      # 51 tests: logic + full pipeline against in-memory fakes
 ```
 
 ## Development
@@ -125,7 +125,7 @@ npm run test
 
 ## Status
 
-Core flows verified live on Reddit and by **48 automated tests** (vote, quorum,
+Core flows verified live on Reddit and by **51 automated tests** (vote, quorum,
 consensus execution, precedent recording, Decision DNA retrieval, split
 detection, link-domain matching, calibration logging). TypeScript typecheck and
 the full suite are green. Destructive paths are guarded against

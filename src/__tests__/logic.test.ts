@@ -4,6 +4,7 @@ import {
   tokenSimilarity,
   fingerprint,
   externalDomain,
+  buildPostSnippet,
 } from "../precedent/embed.js";
 import { tallyVotes } from "../redis.js";
 import { evaluateAutoRoute } from "../conclave/router.js";
@@ -142,6 +143,27 @@ describe("externalDomain", () => {
     // "beacons" stems to "beacon"; the shared domain token makes them match.
     expect(a).toContain("beacon");
     expect(b).toContain("beacon");
+  });
+});
+
+describe("buildPostSnippet", () => {
+  it("folds a link post's domain into the content", () => {
+    const s = buildPostSnippet({ title: "cool thing", url: "https://beacons.ai/x" });
+    expect(s).toContain("beacons.ai");
+    expect(tokenize(s)).toContain("beacon");
+  });
+  it("extracts domains from links inside the body (text post)", () => {
+    const s = buildPostSnippet({
+      title: "check this",
+      body: "buy now at https://beacons.ai/abc seriously",
+      url: "https://www.reddit.com/r/x/comments/1/abc", // self-post URL ignored
+    });
+    expect(tokenize(s)).toContain("beacon");
+  });
+  it("a removed link post and a new one to the same domain match", () => {
+    const removed = buildPostSnippet({ title: "spam one", url: "https://beacons.ai/a" });
+    const fresh = buildPostSnippet({ title: "totally different title", url: "https://beacons.ai/b" });
+    expect(tokenSimilarity(tokenize(removed), tokenize(fresh))).toBeGreaterThan(0);
   });
 });
 
