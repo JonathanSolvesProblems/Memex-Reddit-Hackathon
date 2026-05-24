@@ -16,6 +16,7 @@ import {
   analyzeDecision,
   formatDecisionDNA,
 } from "../precedent/retrieve.js";
+import { precedentCount } from "../redis.js";
 import type { VoteChoice } from "../types.js";
 import type { Conclave } from "../types.js";
 import type { QuorumSettings } from "../settings.js";
@@ -396,6 +397,41 @@ describe("demo seed", () => {
     });
     expect(a.consideredCount).toBeGreaterThanOrEqual(3);
     expect(a.dominant).toBeUndefined();
+  });
+
+  it("re-seeding is idempotent: it resets the demo set instead of duplicating", async () => {
+    const { seedDemoData } = await import("../seed.js");
+    const h = fakeContext();
+    const first = await seedDemoData(h.context);
+    const countAfterFirst = await precedentCount(h.redis);
+    expect(countAfterFirst).toBe(first.decisions);
+
+    await seedDemoData(h.context);
+    await seedDemoData(h.context);
+    expect(await precedentCount(h.redis)).toBe(first.decisions);
+  });
+
+  it("clearDemoData removes seeded decisions but keeps real ones", async () => {
+    const { seedDemoData, clearDemoData } = await import("../seed.js");
+    const h = fakeContext();
+    await seedDemoData(h.context);
+    // A real (non-seed) decision recorded alongside the demo data.
+    await recordDecision(h.redis, {
+      id: "c_real_1",
+      subredditName: "s",
+      targetKind: "post",
+      contentSnippet: "a genuine resolved decision",
+      action: "remove",
+      modName: "team-consensus",
+      reason: "",
+      permalink: "",
+      decidedAt: Date.now(),
+    });
+
+    const removed = await clearDemoData(h.context);
+    expect(removed).toBeGreaterThanOrEqual(18);
+    // Only the real decision survives.
+    expect(await precedentCount(h.redis)).toBe(1);
   });
 
   it("counts this-week decisions accurately from the index, past the loaded window", async () => {

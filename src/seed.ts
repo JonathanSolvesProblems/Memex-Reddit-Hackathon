@@ -1,6 +1,11 @@
 import type { TriggerContext } from "@devvit/public-api";
 import { recordDecision } from "./precedent/retrieve.js";
-import { recordCalibration, setShadowMod } from "./redis.js";
+import {
+  clearSeededCalibration,
+  clearSeededPrecedents,
+  recordCalibration,
+  setShadowMod,
+} from "./redis.js";
 import type { TargetKind, VoteChoice } from "./types.js";
 
 type Seed = {
@@ -183,10 +188,15 @@ export async function seedDemoData(
   const now = Date.now();
   const hour = 60 * 60 * 1000;
   const day = 24 * hour;
+
+  // Idempotent: drop any previously-seeded demo data first so re-running resets
+  // to the same fixed set instead of piling up duplicates.
+  await clearSeededPrecedents(context.redis);
+
   let i = 0;
   for (const s of SEEDS) {
     await recordDecision(context.redis, {
-      id: `seed_${now.toString(36)}_${i}`,
+      id: `seed_${i}`,
       subredditName: "demo",
       targetKind: s.kind ?? "post",
       contentSnippet: s.content,
@@ -205,12 +215,13 @@ export async function seedDemoData(
   try {
     shadowMod = (await context.reddit.getCurrentUser())?.username;
     if (shadowMod) {
+      await clearSeededCalibration(context.redis, shadowMod);
       await setShadowMod(context.redis, shadowMod, true);
       let j = 0;
       for (const c of CALIB_TRAIL) {
         await recordCalibration(context.redis, {
           modName: shadowMod,
-          conclaveId: `seed_calib_${now.toString(36)}_${j}`,
+          conclaveId: `seed_calib_${j}`,
           shadowChoice: c.shadow,
           teamChoice: c.team,
           agreed: c.shadow === c.team,
@@ -224,6 +235,26 @@ export async function seedDemoData(
   }
 
   return { decisions: SEEDS.length, shadowMod };
+}
+
+/**
+ * Remove all seeded demo data: seeded precedents, the current mod's seeded
+ * calibration trail, and their shadow-mode flag. Leaves real decisions intact.
+ */
+export async function clearDemoData(
+  context: Pick<TriggerContext, "redis" | "reddit">,
+): Promise<number> {
+  const removed = await clearSeededPrecedents(context.redis);
+  try {
+    const me = (await context.reddit.getCurrentUser())?.username;
+    if (me) {
+      await clearSeededCalibration(context.redis, me);
+      await setShadowMod(context.redis, me, false);
+    }
+  } catch {
+    // best-effort
+  }
+  return removed;
 }
 
 /** Probe phrases a demo can run Decision DNA against to show clear patterns. */

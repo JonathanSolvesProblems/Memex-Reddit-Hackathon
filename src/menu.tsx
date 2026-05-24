@@ -3,7 +3,7 @@ import type { Context, MenuItemOnPressEvent } from "@devvit/public-api";
 import { spawnConclave } from "./conclave/spawn.js";
 import { analyzeDecision, formatDecisionDNA } from "./precedent/retrieve.js";
 import { buildPostSnippet } from "./precedent/embed.js";
-import { seedDemoData } from "./seed.js";
+import { clearDemoData, seedDemoData } from "./seed.js";
 import {
   isShadowMod,
   listShadowMods,
@@ -329,7 +329,7 @@ const seedForm = Devvit.createForm(
     title: "Seed demo data",
     acceptLabel: "Inject decisions",
     description:
-      "Injects ~15 realistic past decisions so Decision DNA and the Living Rulebook show real patterns. For demos/testing only.",
+      "Resets to a fixed set of ~18 realistic past decisions (plus a calibration trail) so Decision DNA and the Living Rulebook show real patterns. Re-running replaces the demo set, never duplicates. For demos/testing only.",
     fields: [
       {
         name: "confirm",
@@ -364,12 +364,27 @@ function registerSeedDemo(): void {
   });
 }
 
+function registerClearDemo(): void {
+  Devvit.addMenuItem({
+    label: "Memex: Clear demo data (testing)",
+    location: "subreddit",
+    forUserType: "moderator",
+    onPress: async (_event, context) => {
+      const removed = await clearDemoData(context);
+      context.ui.showToast(
+        `Cleared ${removed} seeded decision${removed === 1 ? "" : "s"} and reset demo shadow/calibration. Real decisions kept.`,
+      );
+    },
+  });
+}
+
 export function registerMenu(): void {
   registerSendToConclave();
   registerDecisionDNA();
   registerRunSweep();
   registerSendCalibrationDigest();
   registerSeedDemo();
+  registerClearDemo();
   registerToggleShadow();
   registerOpenRulebook();
 }

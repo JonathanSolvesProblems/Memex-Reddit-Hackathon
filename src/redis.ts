@@ -185,6 +185,42 @@ export async function precedentCountSince(
   return entries.length;
 }
 
+/**
+ * Remove every seeded demo precedent (id prefix `seed_`) from the index and its
+ * backing keys, leaving real decisions untouched. Returns the number removed.
+ * Used to keep `seedDemoData` idempotent and to power a "clear demo data" menu.
+ */
+export async function clearSeededPrecedents(
+  redis: RedisClient,
+): Promise<number> {
+  const entries = await redis.zRange(
+    K.precedentIndex(),
+    0,
+    Number.MAX_SAFE_INTEGER,
+    { by: "rank" },
+  );
+  const seeded = entries
+    .map((e) => e.member)
+    .filter((id) => id.startsWith("seed_"));
+  for (const id of seeded) {
+    await redis.del(K.precedent(id));
+    await redis.del(K.precedentTokens(id));
+    await redis.zRem(K.precedentIndex(), [id]);
+  }
+  return seeded.length;
+}
+
+/** Remove a mod's seeded calibration trail (fields keyed `seed_calib_*`). */
+export async function clearSeededCalibration(
+  redis: RedisClient,
+  modName: string,
+): Promise<void> {
+  const raw = await redis.hGetAll(K.calibration(modName));
+  if (!raw) return;
+  const fields = Object.keys(raw).filter((f) => f.startsWith("seed_calib_"));
+  if (fields.length > 0) await redis.hDel(K.calibration(modName), fields);
+}
+
 export async function getPrecedentTokens(
   redis: RedisClient,
   id: string,
