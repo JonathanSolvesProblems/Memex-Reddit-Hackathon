@@ -83,6 +83,8 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
   );
   const [selected, setSelected] = useState<VoteChoice | null>(null);
   const [viewerCount, setViewerCount] = useState(1);
+  const [rbFilter, setRbFilter] = useState<VoteChoice | "all">("all");
+  const [rbPage, setRbPage] = useState(0);
 
   const myName =
     state.kind === "conclave" ? state.room.currentMod : "viewer";
@@ -156,6 +158,17 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
     },
   );
 
+  // Read-only popup for the full text of a Rulebook decision.
+  const detailForm = context.useForm(
+    (data) => ({
+      title: "Decision detail",
+      acceptLabel: "Close",
+      description: (data.text as string | undefined) ?? "",
+      fields: [],
+    }),
+    async () => {},
+  );
+
   if (state.kind === "conclave") {
     return (
       <ConclaveView
@@ -174,6 +187,14 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
         precedents={state.precedents}
         total={state.total}
         openConclaves={state.openConclaves}
+        filter={rbFilter}
+        page={rbPage}
+        onFilter={(c) => {
+          setRbFilter((prev) => (prev === c ? "all" : c));
+          setRbPage(0);
+        }}
+        onPage={(delta) => setRbPage((p) => Math.max(0, p + delta))}
+        onOpenDecision={(text) => context.ui.showForm(detailForm, { text })}
       />
     );
   }
@@ -590,7 +611,13 @@ function RulebookView(props: {
   precedents: Precedent[];
   total: number;
   openConclaves: number;
+  filter: VoteChoice | "all";
+  page: number;
+  onFilter: (c: VoteChoice) => void;
+  onPage: (delta: number) => void;
+  onOpenDecision: (text: string) => void;
 }): JSX.Element {
+  const PAGE_SIZE = 4;
   const totals: Record<VoteChoice, number> = {
     remove: 0,
     keep: 0,
@@ -599,20 +626,30 @@ function RulebookView(props: {
   };
   for (const p of props.precedents) totals[p.action] += 1;
   const loaded = props.precedents.length;
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const thisWeek = props.precedents.filter((p) => p.decidedAt >= weekAgo).length;
+  const thisWeek = props.precedents.filter(
+    (p) => p.decidedAt >= Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).length;
   const bins = decisionsByDay(props.precedents, 7);
   const binMax = Math.max(1, ...bins);
 
+  const filtered =
+    props.filter === "all"
+      ? props.precedents
+      : props.precedents.filter((p) => p.action === props.filter);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const page = Math.min(props.page, pageCount - 1);
+  const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <zstack width="100%" height="100%" backgroundColor={C.bg}>
-      <vstack width="100%" height="100%" padding="medium" gap="medium">
+      <vstack width="100%" height="100%" padding="medium" gap="small">
         <vstack gap="none">
           <text size="large" weight="bold" color={C.text}>
             Living Rulebook
           </text>
           <text size="xsmall" color={C.faint} wrap>
-            The team's applied decisions, not the written rules.
+            The team's applied decisions, not the written rules. Tap an outcome
+            to filter.
           </text>
         </vstack>
 
@@ -620,28 +657,38 @@ function RulebookView(props: {
         <hstack width="100%" gap="small">
           <StatTile value={`${props.total}`} label="DECISIONS" />
           <StatTile value={`${thisWeek}`} label="THIS WEEK" />
-          <StatTile value={`${props.openConclaves}`} label="OPEN CONCLAVES" />
+          <StatTile value={`${props.openConclaves}`} label="OPEN" />
         </hstack>
 
+        {/* tappable outcome filter chips */}
         <hstack width="100%" gap="small">
           {VOTE_ORDER.map((c) => {
             const meta = VOTE_META[c];
+            const active = props.filter === c;
             return (
               <vstack
                 key={c}
                 grow
                 padding="small"
                 cornerRadius="medium"
-                backgroundColor={C.card}
+                backgroundColor={active ? meta.color : C.card}
                 border="thin"
-                borderColor={C.line}
+                borderColor={active ? meta.color : C.line}
                 alignment="middle center"
                 gap="none"
+                onPress={() => props.onFilter(c)}
               >
-                <text size="xlarge" weight="bold" color={meta.color}>
+                <text
+                  size="large"
+                  weight="bold"
+                  color={active ? "#ffffff" : meta.color}
+                >
                   {totals[c]}
                 </text>
-                <text size="xsmall" color={C.faint}>
+                <text
+                  size="xsmall"
+                  color={active ? "#ffffff" : C.faint}
+                >
                   {meta.label.toUpperCase()}
                 </text>
               </vstack>
@@ -649,11 +696,11 @@ function RulebookView(props: {
           })}
         </hstack>
 
-        {/* proportional outcome bar — the team's decision distribution */}
+        {/* proportional outcome bar (tap a segment to filter) */}
         {loaded > 0 ? (
           <hstack
             width="100%"
-            height="14px"
+            height="12px"
             cornerRadius="full"
             backgroundColor={C.line}
           >
@@ -662,8 +709,9 @@ function RulebookView(props: {
                 <hstack
                   key={`bar-${c}`}
                   width={`${Math.round((totals[c] / loaded) * 100)}%`}
-                  height="14px"
+                  height="12px"
                   backgroundColor={VOTE_META[c].color}
+                  onPress={() => props.onFilter(c)}
                 />
               ) : null,
             )}
@@ -671,41 +719,73 @@ function RulebookView(props: {
         ) : null}
 
         {/* 7-day activity sparkline */}
-        <vstack width="100%" gap="small">
-          <text size="xsmall" color={C.faint}>
-            DECISIONS · LAST 7 DAYS
-          </text>
-          <hstack width="100%" height="44px" gap="small" alignment="bottom">
-            {bins.map((n, i) => (
+        <hstack width="100%" height="32px" gap="small" alignment="bottom">
+          {bins.map((n, i) => (
+            <vstack
+              key={`spark-${i}`}
+              grow
+              height="100%"
+              alignment="bottom center"
+            >
               <vstack
-                key={`spark-${i}`}
-                grow
-                height="100%"
-                alignment="bottom center"
+                width="100%"
+                height={`${Math.max(6, Math.round((n / binMax) * 100))}%`}
+                cornerRadius="small"
+                backgroundColor={n > 0 ? C.escalate : C.cardAlt}
+              />
+            </vstack>
+          ))}
+        </hstack>
+
+        {/* list header + pager (kept at top so it's always reachable) */}
+        <hstack width="100%" alignment="middle" gap="small">
+          <text size="small" weight="bold" color={C.dim} grow>
+            {props.filter === "all"
+              ? "RECENT DECISIONS"
+              : `${props.filter.toUpperCase()} DECISIONS`}
+          </text>
+          {filtered.length > PAGE_SIZE ? (
+            <hstack gap="small" alignment="middle">
+              <button
+                size="small"
+                appearance="bordered"
+                icon="back"
+                disabled={page <= 0}
+                onPress={() => props.onPage(-1)}
               >
-                <vstack
-                  width="100%"
-                  height={`${Math.max(6, Math.round((n / binMax) * 100))}%`}
-                  cornerRadius="small"
-                  backgroundColor={n > 0 ? C.escalate : C.cardAlt}
-                />
-              </vstack>
-            ))}
-          </hstack>
-        </vstack>
+                Prev
+              </button>
+              <text size="xsmall" color={C.faint}>
+                {page + 1}/{pageCount}
+              </text>
+              <button
+                size="small"
+                appearance="bordered"
+                icon="forward"
+                disabled={page >= pageCount - 1}
+                onPress={() => props.onPage(1)}
+              >
+                Next
+              </button>
+            </hstack>
+          ) : null}
+        </hstack>
 
         <vstack width="100%" gap="small" grow>
-          <text size="small" weight="bold" color={C.dim}>
-            RECENT DECISIONS
-          </text>
-          {props.precedents.length === 0 ? (
+          {filtered.length === 0 ? (
             <text size="small" color={C.faint}>
-              No decisions logged yet. As your team moderates, this fills in.
+              {loaded === 0
+                ? "No decisions logged yet. As your team moderates, this fills in."
+                : "No decisions with this outcome yet."}
             </text>
           ) : (
-            props.precedents
-              .slice(0, 6)
-              .map((p) => <RulebookRow key={p.id} precedent={p} />)
+            pageItems.map((p) => (
+              <RulebookRow
+                key={p.id}
+                precedent={p}
+                onOpen={() => props.onOpenDecision(decisionDetail(p))}
+              />
+            ))
           )}
         </vstack>
       </vstack>
@@ -713,7 +793,22 @@ function RulebookView(props: {
   );
 }
 
-function RulebookRow(props: { precedent: Precedent; key?: string }): JSX.Element {
+function decisionDetail(p: Precedent): string {
+  const parts = [
+    `${VOTE_META[p.action].label.toUpperCase()} by u/${p.modName}`,
+    `When: ${new Date(p.decidedAt).toISOString().slice(0, 16).replace("T", " ")} UTC`,
+  ];
+  if (p.reason) parts.push(`Reason: ${p.reason}`);
+  parts.push("");
+  parts.push(p.contentSnippet || "(no content)");
+  return parts.join("\n");
+}
+
+function RulebookRow(props: {
+  precedent: Precedent;
+  onOpen: () => void;
+  key?: string;
+}): JSX.Element {
   const meta = VOTE_META[props.precedent.action];
   return (
     <hstack
@@ -724,6 +819,7 @@ function RulebookRow(props: { precedent: Precedent; key?: string }): JSX.Element
       cornerRadius="medium"
       backgroundColor={C.card}
       alignment="middle start"
+      onPress={props.onOpen}
     >
       <vstack
         width="4px"
@@ -737,7 +833,7 @@ function RulebookRow(props: { precedent: Precedent; key?: string }): JSX.Element
         </text>
         <text size="xsmall" color={C.faint}>
           {meta.label} · u/{props.precedent.modName} ·{" "}
-          {timeAgo(props.precedent.decidedAt)}
+          {timeAgo(props.precedent.decidedAt)} · tap for detail
         </text>
       </vstack>
     </hstack>

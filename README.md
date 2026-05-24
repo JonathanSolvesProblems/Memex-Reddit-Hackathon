@@ -44,7 +44,8 @@ update **live** for everyone viewing the room.
 Every resolved decision becomes part of a pinned custom post showing the team's
 *applied* rules (not just the written ones), with **impact stats** (total
 decisions, decisions this week, open conclaves), a proportional outcome bar, and
-a 7-day activity sparkline.
+a 7-day activity sparkline. It's interactive: **tap an outcome to filter**,
+**page through** all decisions, and **tap any decision** for its full detail.
 
 ### Calibration (consistent onboarding)
 New mods cast **shadow votes** that are logged but don't count toward quorum. A
