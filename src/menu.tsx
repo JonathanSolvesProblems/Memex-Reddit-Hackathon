@@ -324,24 +324,34 @@ function registerSendCalibrationDigest(): void {
   });
 }
 
-const seedForm = Devvit.createForm(
+const demoDataForm = Devvit.createForm(
   {
-    title: "Seed demo data",
-    acceptLabel: "Inject decisions",
+    title: "Memex: Demo data",
+    acceptLabel: "Run",
     description:
-      "Resets to a fixed set of ~18 realistic past decisions (plus a calibration trail) so Decision DNA and the Living Rulebook show real patterns. Re-running replaces the demo set, never duplicates. For demos/testing only.",
+      "Demo/testing only. Seeding resets to a fixed set of ~18 decisions plus a calibration trail (re-running replaces, never duplicates). Clearing removes all seeded demo data and keeps your real decisions.",
     fields: [
       {
-        name: "confirm",
-        label: "Yes, inject demo decisions",
-        type: "boolean",
-        defaultValue: true,
+        name: "action",
+        label: "Action",
+        type: "select",
+        required: true,
+        options: [
+          { label: "Seed / reset demo data", value: "seed" },
+          { label: "Clear all demo data", value: "clear" },
+        ],
+        defaultValue: ["seed"],
       },
     ],
   },
   async (event, context) => {
-    if (!event.values.confirm) {
-      context.ui.showToast("Cancelled. No data injected.");
+    const raw = event.values.action;
+    const action = Array.isArray(raw) ? String(raw[0]) : String(raw ?? "");
+    if (action === "clear") {
+      const removed = await clearDemoData(context);
+      context.ui.showToast(
+        `Cleared ${removed} seeded decision${removed === 1 ? "" : "s"} and reset demo shadow/calibration. Real decisions kept.`,
+      );
       return;
     }
     const { decisions, shadowMod } = await seedDemoData(context);
@@ -353,27 +363,13 @@ const seedForm = Devvit.createForm(
   },
 );
 
-function registerSeedDemo(): void {
+function registerDemoData(): void {
   Devvit.addMenuItem({
-    label: "Memex: Seed demo data (testing)",
+    label: "Memex: Demo data (testing)",
     location: "subreddit",
     forUserType: "moderator",
     onPress: async (_event, context) => {
-      context.ui.showForm(seedForm);
-    },
-  });
-}
-
-function registerClearDemo(): void {
-  Devvit.addMenuItem({
-    label: "Memex: Clear demo data (testing)",
-    location: "subreddit",
-    forUserType: "moderator",
-    onPress: async (_event, context) => {
-      const removed = await clearDemoData(context);
-      context.ui.showToast(
-        `Cleared ${removed} seeded decision${removed === 1 ? "" : "s"} and reset demo shadow/calibration. Real decisions kept.`,
-      );
+      context.ui.showForm(demoDataForm);
     },
   });
 }
@@ -383,8 +379,7 @@ export function registerMenu(): void {
   registerDecisionDNA();
   registerRunSweep();
   registerSendCalibrationDigest();
-  registerSeedDemo();
-  registerClearDemo();
+  registerDemoData();
   registerToggleShadow();
   registerOpenRulebook();
 }
