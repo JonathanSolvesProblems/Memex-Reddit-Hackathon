@@ -29,6 +29,11 @@ function settings(over?: Partial<QuorumSettings>): QuorumSettings {
     precedentLimit: 500,
     precedentMinSimilarity: 20,
     banRequiresHumanClick: true,
+    autoSweepEnabled: false,
+    sweepScanLimit: 100,
+    sweepMinConsistency: 70,
+    sweepIncludeWarn: false,
+    sweepReportToQueue: true,
     ...over,
   };
 }
@@ -279,6 +284,85 @@ describe("Decision DNA (analyzeDecision)", () => {
     expect(a.consideredCount).toBe(0);
     expect(a.dominant).toBeUndefined();
     expect(formatDecisionDNA(a)).toContain("No similar past decisions");
+  });
+});
+
+describe("consistency sweep", () => {
+  async function seedAffiliateRemovals(h: ReturnType<typeof fakeContext>) {
+    for (let i = 0; i < 4; i++) {
+      await recordDecision(h.redis, {
+        id: `sw_${i}`,
+        subredditName: "s",
+        targetKind: "post",
+        contentSnippet:
+          "check out my store affiliate link discount promo code supplements",
+        action: "remove",
+        modName: "maya",
+        reason: "affiliate self-promo",
+        permalink: "/x",
+        decidedAt: Date.now() - i * 1000,
+      });
+    }
+  }
+
+  it("reports a live post matching past REMOVE decisions, ignores benign", async () => {
+    const { runConsistencySweep } = await import("../audit.js");
+    const h = fakeContext();
+    await seedAffiliateRemovals(h);
+    h.reddit.newPosts = [
+      {
+        id: "t3_spam",
+        title: "check out my store affiliate link discount promo code",
+        body: "",
+        permalink: "/spam",
+        removed: false,
+        spam: false,
+        approved: false,
+      },
+      {
+        id: "t3_ok",
+        title: "what is the best recipe for homemade sourdough bread",
+        body: "",
+        permalink: "/ok",
+        removed: false,
+      },
+    ];
+    const res = await runConsistencySweep(
+      h.context,
+      settings({ sweepScanLimit: 50, sweepMinConsistency: 60 }),
+    );
+    expect(res.flagged).toBe(1);
+    const reported = h.reddit.actions.reported.map((r) => r.id);
+    expect(reported).toContain("t3_spam");
+    expect(reported).not.toContain("t3_ok");
+    // and a modmail digest was sent
+    expect(h.reddit.actions.modmails.length).toBeGreaterThan(0);
+  });
+
+  it("skips already-removed posts and never double-reports", async () => {
+    const { runConsistencySweep } = await import("../audit.js");
+    const h = fakeContext();
+    await seedAffiliateRemovals(h);
+    h.reddit.newPosts = [
+      {
+        id: "t3_removed",
+        title: "check out my store affiliate link discount promo code",
+        removed: true,
+      },
+      {
+        id: "t3_live",
+        title: "check out my store affiliate link discount promo code",
+        removed: false,
+      },
+    ];
+    const s = settings({ sweepMinConsistency: 60 });
+    const first = await runConsistencySweep(h.context, s);
+    expect(first.flagged).toBe(1); // only the live one
+    expect(h.reddit.actions.reported.map((r) => r.id)).toEqual(["t3_live"]);
+
+    const second = await runConsistencySweep(h.context, s);
+    expect(second.flagged).toBe(0); // already reported, not flagged again
+    expect(h.reddit.actions.reported).toHaveLength(1);
   });
 });
 

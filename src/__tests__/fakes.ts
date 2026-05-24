@@ -118,6 +118,19 @@ export type RecordedActions = {
   approved: string[];
   locked: string[];
   modmails: { subject: string; bodyMarkdown: string }[];
+  reported: { id: string; reason: string }[];
+};
+
+export type FakeScanPost = {
+  id: string;
+  title?: string;
+  body?: string;
+  url?: string;
+  permalink?: string;
+  authorName?: string;
+  removed?: boolean;
+  spam?: boolean;
+  approved?: boolean;
 };
 
 export type RecordedModNote = {
@@ -132,8 +145,20 @@ export class FakeReddit {
     approved: [],
     locked: [],
     modmails: [],
+    reported: [],
   };
   modNotes: RecordedModNote[] = [];
+  newPosts: FakeScanPost[] = [];
+
+  getNewPosts(opts?: { subredditName?: string; limit?: number }) {
+    const limit = opts?.limit ?? 100;
+    const posts = this.newPosts.slice(0, limit);
+    return { all: async () => posts };
+  }
+
+  async report(target: { id: string }, opts: { reason: string }) {
+    this.actions.reported.push({ id: target.id, reason: opts.reason });
+  }
 
   async addModNote(opts: {
     subreddit: string;

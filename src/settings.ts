@@ -15,6 +15,11 @@ export const SETTING = {
   precedentLimit: "precedentLimit",
   precedentMinSimilarity: "precedentMinSimilarity",
   banRequiresHumanClick: "banRequiresHumanClick",
+  autoSweepEnabled: "autoSweepEnabled",
+  sweepScanLimit: "sweepScanLimit",
+  sweepMinConsistency: "sweepMinConsistency",
+  sweepIncludeWarn: "sweepIncludeWarn",
+  sweepReportToQueue: "sweepReportToQueue",
 } as const;
 
 export const appSettings: SettingsFormField[] = [
@@ -140,6 +145,60 @@ export const appSettings: SettingsFormField[] = [
       },
     ],
   },
+  {
+    type: "group",
+    label: "Consistency Sweep",
+    helpText:
+      "Audits recent live posts against the team's own past decisions and surfaces ones similar to content the team has REMOVED but that are still up. Never auto-removes; it reports flagged items into the modqueue for a human to review.",
+    fields: [
+      {
+        type: "boolean",
+        name: SETTING.autoSweepEnabled,
+        label: "Run a sweep automatically once a day",
+        helpText:
+          "When on, Memex audits recent content daily and reports likely-missed items. You can also run a sweep on demand from the subreddit menu.",
+        defaultValue: false,
+      },
+      {
+        type: "number",
+        name: SETTING.sweepScanLimit,
+        label: "Posts to scan per sweep",
+        helpText: "How many recent posts to audit (newest first).",
+        defaultValue: 100,
+        onValidate: ({ value }) => {
+          if (!value || value < 10) return "Must be at least 10.";
+          if (value > 1000) return "Cannot exceed 1000.";
+        },
+      },
+      {
+        type: "number",
+        name: SETTING.sweepMinConsistency,
+        label: "Sweep intensity: minimum consistency to flag (0-100)",
+        helpText:
+          "Only flag an item when the team's past decisions on similar content were at least this consistent. Lower = more aggressive (more flags), higher = stricter.",
+        defaultValue: 70,
+        onValidate: ({ value }) => {
+          if (value === undefined || value < 0 || value > 100)
+            return "Must be between 0 and 100.";
+        },
+      },
+      {
+        type: "boolean",
+        name: SETTING.sweepIncludeWarn,
+        label: "Also flag content matching past WARN decisions",
+        helpText: "Off = only flag content similar to past REMOVE decisions.",
+        defaultValue: false,
+      },
+      {
+        type: "boolean",
+        name: SETTING.sweepReportToQueue,
+        label: "Report flagged items into the modqueue",
+        helpText:
+          "Recommended ON. Flagged items appear in your normal modqueue with a Memex reason. Either way, a summary is sent to modmail.",
+        defaultValue: true,
+      },
+    ],
+  },
 ];
 
 export interface QuorumSettings {
@@ -153,6 +212,11 @@ export interface QuorumSettings {
   precedentLimit: number;
   precedentMinSimilarity: number;
   banRequiresHumanClick: boolean;
+  autoSweepEnabled: boolean;
+  sweepScanLimit: number;
+  sweepMinConsistency: number;
+  sweepIncludeWarn: boolean;
+  sweepReportToQueue: boolean;
 }
 
 function num(values: SettingsValues, key: string, fallback: number): number {
@@ -198,5 +262,10 @@ export async function loadSettings(
     precedentLimit: num(values, SETTING.precedentLimit, 500),
     precedentMinSimilarity: num(values, SETTING.precedentMinSimilarity, 25),
     banRequiresHumanClick: bool(values, SETTING.banRequiresHumanClick, true),
+    autoSweepEnabled: bool(values, SETTING.autoSweepEnabled, false),
+    sweepScanLimit: num(values, SETTING.sweepScanLimit, 100),
+    sweepMinConsistency: num(values, SETTING.sweepMinConsistency, 70),
+    sweepIncludeWarn: bool(values, SETTING.sweepIncludeWarn, false),
+    sweepReportToQueue: bool(values, SETTING.sweepReportToQueue, true),
   };
 }

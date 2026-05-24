@@ -278,6 +278,24 @@ function registerOpenRulebook(): void {
   });
 }
 
+function registerRunSweep(): void {
+  Devvit.addMenuItem({
+    label: "Memex: Run consistency sweep",
+    location: "subreddit",
+    forUserType: "moderator",
+    onPress: async (_event, context) => {
+      await context.scheduler.runJob({
+        name: "consistencySweep",
+        runAt: new Date(),
+        data: { manual: true },
+      });
+      context.ui.showToast(
+        "Consistency sweep started. Results will be posted to modmail.",
+      );
+    },
+  });
+}
+
 const seedForm = Devvit.createForm(
   {
     title: "Seed demo data",
@@ -319,6 +337,7 @@ function registerSeedDemo(): void {
 export function registerMenu(): void {
   registerSendToConclave();
   registerDecisionDNA();
+  registerRunSweep();
   registerSeedDemo();
   registerToggleShadow();
   registerOpenRulebook();

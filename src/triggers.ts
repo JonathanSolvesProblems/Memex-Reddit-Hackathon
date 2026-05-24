@@ -26,6 +26,7 @@ import {
 import { getConclave, K, wasRouted } from "./redis.js";
 import { loadSettings } from "./settings.js";
 import { runOnboarding } from "./onboard.js";
+import { runConsistencySweep } from "./audit.js";
 import type { ModAction as QuorumModAction, VoteChoice } from "./types.js";
 
 const REMOVE_ACTIONS = new Set<QuorumModAction>([
@@ -221,7 +222,34 @@ export async function onAppInstallOrUpgrade(
     cron: `*/15 * * * *`,
   });
 
+  // Autonomous consistency sweep, once a day at a randomized minute. The job
+  // itself no-ops unless the mod has enabled auto-sweep in settings.
+  await context.scheduler.runJob({
+    name: "consistencySweep",
+    cron: `${Math.floor(Math.random() * 60)} 9 * * *`,
+  });
+
   await runOnboarding(context);
+}
+
+export async function onConsistencySweep(
+  event: ScheduledJobEvent<JSONObject | undefined>,
+  context: JobContext,
+): Promise<void> {
+  try {
+    const manual = event.data?.manual === true;
+    const settings = await loadSettings(context);
+    if (!manual && !settings.autoSweepEnabled) return;
+    const result = await runConsistencySweep(context, settings);
+    console.log(
+      `[Memex sweep] scanned=${result.scanned} flagged=${result.flagged} reported=${result.reported} (manual=${manual})`,
+    );
+  } catch (e) {
+    console.error(
+      "[Memex sweep] failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
 }
 
 export async function onConclaveTimeout(

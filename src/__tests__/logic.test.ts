@@ -8,7 +8,8 @@ import {
 import { tallyVotes } from "../redis.js";
 import { evaluateAutoRoute } from "../conclave/router.js";
 import { decisionsByDay, outcomeCounts } from "../stats.js";
-import type { Precedent, Vote } from "../types.js";
+import { shouldFlag } from "../audit.js";
+import type { DecisionAnalysis, Precedent, Vote } from "../types.js";
 import type { QuorumSettings } from "../settings.js";
 
 const baseSettings: QuorumSettings = {
@@ -22,6 +23,11 @@ const baseSettings: QuorumSettings = {
   precedentLimit: 500,
   precedentMinSimilarity: 25,
   banRequiresHumanClick: true,
+  autoSweepEnabled: false,
+  sweepScanLimit: 100,
+  sweepMinConsistency: 70,
+  sweepIncludeWarn: false,
+  sweepReportToQueue: true,
 };
 
 function vote(choice: Vote["choice"], shadow = false): Vote {
@@ -81,6 +87,41 @@ describe("outcomeCounts", () => {
       prec(4, "warn"),
     ]);
     expect(c).toEqual({ remove: 2, keep: 1, warn: 1, escalate: 0 });
+  });
+});
+
+function analysis(over: Partial<DecisionAnalysis>): DecisionAnalysis {
+  return {
+    matches: [],
+    consideredCount: 5,
+    counts: { remove: 0, keep: 0, warn: 0, escalate: 0 },
+    dominant: undefined,
+    consistencyPct: 0,
+    ...over,
+  };
+}
+
+describe("shouldFlag (consistency sweep)", () => {
+  it("flags content matching a consistent past REMOVE", () => {
+    const a = analysis({ dominant: "remove", consistencyPct: 80, counts: { remove: 4, keep: 1, warn: 0, escalate: 0 } });
+    expect(shouldFlag(a, 70, false)).toBe(true);
+  });
+  it("does not flag below the consistency threshold", () => {
+    const a = analysis({ dominant: "remove", consistencyPct: 60 });
+    expect(shouldFlag(a, 70, false)).toBe(false);
+  });
+  it("does not flag KEEP-dominant content", () => {
+    const a = analysis({ dominant: "keep", consistencyPct: 95 });
+    expect(shouldFlag(a, 70, false)).toBe(false);
+  });
+  it("flags WARN only when includeWarn is on", () => {
+    const a = analysis({ dominant: "warn", consistencyPct: 90 });
+    expect(shouldFlag(a, 70, false)).toBe(false);
+    expect(shouldFlag(a, 70, true)).toBe(true);
+  });
+  it("never flags split or no-history content", () => {
+    expect(shouldFlag(analysis({ dominant: undefined, consistencyPct: 90 }), 70, true)).toBe(false);
+    expect(shouldFlag(analysis({ consideredCount: 0 }), 0, true)).toBe(false);
   });
 });
 

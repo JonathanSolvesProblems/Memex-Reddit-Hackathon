@@ -8,6 +8,7 @@ import {
   onCommentSubmit,
   onConclaveSweep,
   onConclaveTimeout,
+  onConsistencySweep,
   onModActionEvent,
   onModMailReceived,
   onPostSubmit,
@@ -51,6 +52,11 @@ Devvit.addSchedulerJob({
 Devvit.addSchedulerJob({
   name: "weeklyCalibrationDigest",
   onRun: runWeeklyDigest,
+});
+
+Devvit.addSchedulerJob({
+  name: "consistencySweep",
+  onRun: onConsistencySweep,
 });
 
 registerMenu();

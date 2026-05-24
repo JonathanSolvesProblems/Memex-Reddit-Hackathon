@@ -51,6 +51,14 @@ New mods cast **shadow votes** that are logged but don't count toward quorum. A
 weekly digest shows where they diverged from team consensus and why, so they
 absorb the team's standards in weeks instead of months.
 
+### Consistency Sweep (retrospective audit)
+On demand or **automatically once a day**, Memex scans recent live posts and
+flags ones similar to content the team has **REMOVED before but are still up**,
+using the team's own past decisions as the baseline (no rules to define, no AI).
+Flagged items are **reported into the modqueue** (never auto-removed) with a
+Memex reason, plus a modmail summary. Intensity is a single dial (minimum past
+consistency to flag). This catches what the team missed.
+
 ### Plus
 - **Native mod-notes:** every team decision is written to Reddit's own mod-note
   timeline, so the memory is visible even outside the app.
@@ -97,11 +105,12 @@ src/
   conclave/       # routing, vote tally + consensus execution, room spawn
   precedent/      # tokenize + similarity, analyzeDecision (Decision DNA), retrieval
   calibration/    # weekly divergence digest
+  audit.ts        # consistency sweep (retrospective precedent audit)
   stats.ts        # pure helpers for the Rulebook visuals
   onboard.tsx     # first-run onboarding
   triggers.ts     # PostSubmit / CommentSubmit / ModAction / ModMail / install
   seed.ts         # demo data
-  __tests__/      # 41 tests: logic + full pipeline against in-memory fakes
+  __tests__/      # 48 tests: logic + full pipeline against in-memory fakes
 ```
 
 ## Development
@@ -116,7 +125,7 @@ npm run test
 
 ## Status
 
-Core flows verified live on Reddit and by **41 automated tests** (vote, quorum,
+Core flows verified live on Reddit and by **48 automated tests** (vote, quorum,
 consensus execution, precedent recording, Decision DNA retrieval, split
 detection, link-domain matching, calibration logging). TypeScript typecheck and
 the full suite are green. Destructive paths are guarded against

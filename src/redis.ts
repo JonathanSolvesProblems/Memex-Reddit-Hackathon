@@ -28,6 +28,7 @@ export const K = {
 
   routedTargets: () => "routed-targets",
   viewing: (conclaveId: string) => `viewing:${conclaveId}`,
+  sweepReported: () => "sweep-reported",
 };
 
 const VIEW_WINDOW_MS = 6_000;
@@ -194,6 +195,22 @@ export async function wasRouted(
 ): Promise<boolean> {
   const score = await redis.zScore(K.routedTargets(), targetId);
   return score !== undefined && score !== null;
+}
+
+/** True if the consistency sweep already flagged/reported this item. */
+export async function wasSweepReported(
+  redis: RedisClient,
+  itemId: string,
+): Promise<boolean> {
+  const score = await redis.zScore(K.sweepReported(), itemId);
+  return score !== undefined && score !== null;
+}
+
+export async function markSweepReported(
+  redis: RedisClient,
+  itemId: string,
+): Promise<void> {
+  await redis.zAdd(K.sweepReported(), { member: itemId, score: Date.now() });
 }
 
 export async function recordCalibration(
