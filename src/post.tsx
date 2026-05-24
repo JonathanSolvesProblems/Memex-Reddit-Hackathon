@@ -193,8 +193,22 @@ export const MemexPost: Devvit.CustomPostComponent = (context) => {
           setRbFilter((prev) => (prev === c ? "all" : c));
           setRbPage(0);
         }}
+        onClearFilter={() => {
+          setRbFilter("all");
+          setRbPage(0);
+        }}
         onPage={(delta) => setRbPage((p) => Math.max(0, p + delta))}
         onOpenDecision={(text) => context.ui.showForm(detailForm, { text })}
+        onRunSweep={async () => {
+          await context.scheduler.runJob({
+            name: "consistencySweep",
+            runAt: new Date(),
+            data: { manual: true },
+          });
+          context.ui.showToast(
+            "Consistency sweep started. Results will be posted to modmail.",
+          );
+        }}
       />
     );
   }
@@ -614,8 +628,10 @@ function RulebookView(props: {
   filter: VoteChoice | "all";
   page: number;
   onFilter: (c: VoteChoice) => void;
+  onClearFilter: () => void;
   onPage: (delta: number) => void;
   onOpenDecision: (text: string) => void;
+  onRunSweep: () => void;
 }): JSX.Element {
   const PAGE_SIZE = 4;
   const totals: Record<VoteChoice, number> = {
@@ -648,12 +664,14 @@ function RulebookView(props: {
             Living Rulebook
           </text>
           <text size="xsmall" color={C.faint} wrap>
-            The team's applied decisions, not the written rules. Tap an outcome
-            to filter.
+            The team's applied decisions, not the written rules.
           </text>
         </vstack>
 
-        {/* impact stats */}
+        {/* overview stats (informational, not tappable) */}
+        <text size="xsmall" weight="bold" color={C.faint}>
+          OVERVIEW
+        </text>
         <hstack width="100%" gap="small">
           <StatTile value={`${props.total}`} label="DECISIONS" />
           <StatTile value={`${thisWeek}`} label="THIS WEEK" />
@@ -661,6 +679,23 @@ function RulebookView(props: {
         </hstack>
 
         {/* tappable outcome filter chips */}
+        <hstack width="100%" alignment="middle" gap="small">
+          <text size="xsmall" weight="bold" color={C.faint} grow>
+            FILTER BY OUTCOME · TAP A COUNT
+          </text>
+          {props.filter !== "all" ? (
+            <hstack
+              padding="xsmall"
+              cornerRadius="full"
+              backgroundColor={C.cardAlt}
+              onPress={props.onClearFilter}
+            >
+              <text size="xsmall" weight="bold" color={C.escalate}>
+                ✕ Show all
+              </text>
+            </hstack>
+          ) : null}
+        </hstack>
         <hstack width="100%" gap="small">
           {VOTE_ORDER.map((c) => {
             const meta = VOTE_META[c];
@@ -685,10 +720,7 @@ function RulebookView(props: {
                 >
                   {totals[c]}
                 </text>
-                <text
-                  size="xsmall"
-                  color={active ? "#ffffff" : C.faint}
-                >
+                <text size="xsmall" color={active ? "#ffffff" : C.faint}>
                   {meta.label.toUpperCase()}
                 </text>
               </vstack>
@@ -696,45 +728,43 @@ function RulebookView(props: {
           })}
         </hstack>
 
-        {/* proportional outcome bar (tap a segment to filter) */}
-        {loaded > 0 ? (
-          <hstack
-            width="100%"
-            height="12px"
-            cornerRadius="full"
-            backgroundColor={C.line}
-          >
-            {VOTE_ORDER.map((c) =>
-              totals[c] > 0 ? (
-                <hstack
-                  key={`bar-${c}`}
-                  width={`${Math.round((totals[c] / loaded) * 100)}%`}
-                  height="12px"
-                  backgroundColor={VOTE_META[c].color}
-                  onPress={() => props.onFilter(c)}
-                />
-              ) : null,
-            )}
-          </hstack>
-        ) : null}
+        {/* call to action: audit live content against these decisions */}
+        <button
+          width="100%"
+          appearance="bordered"
+          icon="search"
+          onPress={props.onRunSweep}
+        >
+          Run consistency sweep
+        </button>
 
-        {/* 7-day activity sparkline */}
-        <hstack width="100%" height="32px" gap="small" alignment="bottom">
-          {bins.map((n, i) => (
-            <vstack
-              key={`spark-${i}`}
-              grow
-              height="100%"
-              alignment="bottom center"
-            >
+        {/* labeled 7-day activity sparkline */}
+        <hstack width="100%" alignment="start bottom" gap="small">
+          <vstack gap="none" grow>
+            <text size="xsmall" weight="bold" color={C.faint}>
+              ACTIVITY · LAST 7 DAYS
+            </text>
+            <text size="xsmall" color={C.faint}>
+              peak {Math.max(...bins)}/day
+            </text>
+          </vstack>
+          <hstack width="55%" height="28px" gap="small" alignment="bottom">
+            {bins.map((n, i) => (
               <vstack
-                width="100%"
-                height={`${Math.max(6, Math.round((n / binMax) * 100))}%`}
-                cornerRadius="small"
-                backgroundColor={n > 0 ? C.escalate : C.cardAlt}
-              />
-            </vstack>
-          ))}
+                key={`spark-${i}`}
+                grow
+                height="100%"
+                alignment="bottom center"
+              >
+                <vstack
+                  width="100%"
+                  height={`${Math.max(6, Math.round((n / binMax) * 100))}%`}
+                  cornerRadius="small"
+                  backgroundColor={n > 0 ? C.escalate : C.cardAlt}
+                />
+              </vstack>
+            ))}
+          </hstack>
         </hstack>
 
         {/* list header + pager (kept at top so it's always reachable) */}
