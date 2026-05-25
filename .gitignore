@@ -5,6 +5,7 @@ dist/
 .env
 .env.local
 
-# Local-only submission-prep docs — never commit
+# Local-only submission-prep docs and art: never commit, never ship in the app
 SUBMISSION.md
 DEMO_SCRIPT.md
+submission/
