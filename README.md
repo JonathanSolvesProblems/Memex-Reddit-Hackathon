@@ -19,6 +19,17 @@ door when a veteran mod leaves.
 - **App:** https://developers.reddit.com/apps/memex-mod
 - **Built on:** Devvit (Reddit Developer Platform), TypeScript, Redis
 - **Category:** New Mod Tool · Reddit Mod Tools & Migrated Apps Hackathon
+- **Demo:** [Watch the 3-minute walkthrough](https://www.youtube.com/watch?v=n-8ZO2wbmm8)
+
+## Demo
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=n-8ZO2wbmm8">
+    <img src="https://img.youtube.com/vi/n-8ZO2wbmm8/maxresdefault.jpg" alt="Watch the Memex demo" width="640" />
+  </a>
+</p>
+
+<p align="center"><b><a href="https://www.youtube.com/watch?v=n-8ZO2wbmm8">▶ Watch the 3-minute demo</a></b></p>
 
 ---
 
