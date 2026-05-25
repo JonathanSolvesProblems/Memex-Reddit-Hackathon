@@ -9,3 +9,7 @@ dist/
 SUBMISSION.md
 DEMO_SCRIPT.md
 submission/
+
+# Local demo videos (hosted on YouTube and linked in the README; not committed)
+*.mov
+*.mp4
