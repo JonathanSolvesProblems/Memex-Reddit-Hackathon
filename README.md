@@ -1,4 +1,12 @@
+<p align="center">
+  <img src="assets/default-icon.png" alt="Memex" width="120" height="120" />
+</p>
+
 # Memex · institutional memory for mod teams
+
+![tests](https://img.shields.io/badge/tests-55_passing-brightgreen)
+![external API](https://img.shields.io/badge/external_API-none-blue)
+![built on](https://img.shields.io/badge/built_on-Devvit-FF4500)
 
 **The only Reddit mod tool with institutional memory.** Memex remembers how your
 team decided before, surfaces it at the moment you decide again, and keeps new
