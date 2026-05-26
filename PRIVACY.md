@@ -48,4 +48,4 @@ developer.
 
 ## Contact
 
-Questions about this policy: **hello@n2.help**
+Questions about this policy: **jonathan@jonathanandrei.com**

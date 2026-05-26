@@ -47,4 +47,4 @@ These terms may be updated; continued use after an update constitutes acceptance
 of the revised terms.
 
 ## 8. Contact
-Questions about these terms: **hello@n2.help**
+Questions about these terms: **jonathan@jonathanandrei.com**
