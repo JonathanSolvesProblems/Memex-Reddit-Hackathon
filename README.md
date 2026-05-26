@@ -57,13 +57,17 @@ The default engine is **local trigram + token similarity**: no external API, no
 key, no per-comment cost. It runs the instant it's installed, on any sub size, in
 any language.
 
-### Semantic matching (optional, opt-in)
+### Semantic matching (optional, opt-in, multi-provider)
 Now that the app runs on a real server, a subreddit can optionally enable
-**OpenAI-embedding similarity**, blended on top of the local engine, to catch
+embedding-based similarity, blended on top of the local engine, to catch
 paraphrases the lexical engine misses ("promo code for my shop" vs "discount link
-to my store"). It is **off by default**, requires a key set by the developer, and
-**falls back to the local engine** on any miss, so the tool stays fully functional
-and private out of the box. See [PRIVACY.md](PRIVACY.md).
+to my store"). Paste an API key and Memex **auto-detects the provider** from its
+shape (OpenAI `sk-...`, Google Gemini `AIza...`); the provider layer is
+vendor-agnostic and easy to extend. It is **off by default**, and with the toggle
+off or no key Memex never makes an external call (pure local, no errors). A
+mistyped key is caught on save, and the dashboard reminds you to add one if the
+toggle is on without a key. Any failure falls back to the local engine, so the
+tool stays fully functional and private out of the box. See [PRIVACY.md](PRIVACY.md).
 
 ### Conclave (async team decisions)
 Borderline items become mod-only decision rooms. Mods vote
