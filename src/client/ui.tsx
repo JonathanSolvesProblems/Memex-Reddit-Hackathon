@@ -29,6 +29,41 @@ export function OutcomeBars({
   );
 }
 
+/**
+ * A single-row stacked proportion bar across the four outcomes, with a compact
+ * legend. Shows the team's "lean" at a glance, sized for the inline feed card.
+ */
+export function StackedBar({ counts }: { counts: Record<VoteChoice, number> }) {
+  const total = CHOICES.reduce((s, c) => s + counts[c], 0);
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+        {CHOICES.map((c) =>
+          counts[c] > 0 ? (
+            <div
+              key={c}
+              className={`${CHOICE_META[c].bar} transition-all`}
+              style={{ width: `${(counts[c] / total) * 100}%` }}
+            />
+          ) : null,
+        )}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {CHOICES.filter((c) => counts[c] > 0).map((c) => (
+          <span
+            key={c}
+            className="flex items-center gap-1 text-[10px] text-slate-400"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${CHOICE_META[c].dot}`} />
+            {CHOICE_META[c].label} {counts[c]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** A minimalist activity sparkline (bars), newest on the right. */
 export function Sparkline({ data }: { data: number[] }) {
   const max = Math.max(1, ...data);

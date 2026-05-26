@@ -17,6 +17,7 @@ import { seedDemoData, clearDemoData } from "../core/seed";
 import { runConsistencySweep } from "../core/audit";
 import { runWeeklyDigest } from "../core/digest";
 import { analyzeDecision, formatDecisionDNA } from "../core/retrieve";
+import type { DecisionAnalysis } from "../../shared/types";
 
 export const menu = new Hono();
 
@@ -39,17 +40,28 @@ function postLink(postId: string): string {
   return `https://www.reddit.com/r/${context.subredditName}/comments/${postId.replace(/^t3_/, "")}`;
 }
 
-function dnaForm(dna: string): Form {
+/** One-line verdict shown as the form subtitle, so the headline lands first. */
+function dnaHeadline(a: DecisionAnalysis): string {
+  if (a.consideredCount === 0) {
+    return "No similar past decisions yet. This would set the precedent.";
+  }
+  if (a.dominant) {
+    return `Dominant: ${a.dominant.toUpperCase()} · ${a.consistencyPct}% consistent · ${a.consideredCount} similar`;
+  }
+  return `Split decision · ${a.consideredCount} similar, no clear lead`;
+}
+
+function dnaForm(analysis: DecisionAnalysis): Form {
   return {
     title: "Decision DNA",
-    description: "How your team has historically ruled on similar content.",
+    description: dnaHeadline(analysis),
     acceptLabel: "Done",
     fields: [
       {
         type: "paragraph",
         name: "dna",
-        label: "Team precedent",
-        defaultValue: dna,
+        label: "Full breakdown",
+        defaultValue: formatDecisionDNA(analysis),
         disabled: true,
       },
     ],
@@ -64,7 +76,7 @@ async function showDna(snippet: string): Promise<UiResponse> {
     minSimilarity: settings.precedentMinSimilarity,
     topK: 3,
   });
-  return { showForm: { name: "dnaForm", form: dnaForm(formatDecisionDNA(analysis)) } };
+  return { showForm: { name: "dnaForm", form: dnaForm(analysis) } };
 }
 
 /** Post menu: instant Decision DNA for this post. */
