@@ -38,8 +38,10 @@ function OpenButton({ label }: { label: string }) {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-3 bg-slate-950 p-5 text-center text-slate-100">
-      {children}
+    <div className="flex min-h-screen w-full justify-center bg-slate-950 p-5 text-slate-100">
+      <div className="flex w-full max-w-md flex-col justify-center gap-3 text-center">
+        {children}
+      </div>
     </div>
   );
 }
