@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/main/assets/default-icon.png" alt="Memex" width="120" height="120" />
-</p>
-
 # Memex · institutional memory for mod teams
 
 ![tests](https://img.shields.io/badge/tests-50_passing-brightgreen)
@@ -34,13 +30,9 @@ door when a veteran mod leaves.
 
 ## Demo
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=j4l50zTaa_E">
-    <img src="https://img.youtube.com/vi/j4l50zTaa_E/maxresdefault.jpg" alt="Watch the Memex demo" width="640" />
-  </a>
-</p>
+[![Watch the Memex demo](https://img.youtube.com/vi/j4l50zTaa_E/maxresdefault.jpg)](https://www.youtube.com/watch?v=j4l50zTaa_E)
 
-<p align="center"><b><a href="https://www.youtube.com/watch?v=j4l50zTaa_E">Watch the 1-minute demo</a></b> · <a href="https://www.youtube.com/watch?v=n-8ZO2wbmm8">full walkthrough</a></p>
+**[Watch the 1-minute demo](https://www.youtube.com/watch?v=j4l50zTaa_E)** · [full walkthrough](https://www.youtube.com/watch?v=n-8ZO2wbmm8)
 
 ---
 
