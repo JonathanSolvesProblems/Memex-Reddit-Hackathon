@@ -28,19 +28,21 @@ forms.post("/route-submit", async (c) => {
     const settings = await loadSettings();
     const result = await spawnConclave({ ...pending, reason: note }, settings);
 
-    if (result.alreadyExisted) {
-      const link = result.conclave?.conclavePostId
-        ? `https://www.reddit.com/r/${context.subredditName}/comments/${result.conclave.conclavePostId.replace(/^t3_/, "")}`
-        : undefined;
-      return c.json<UiResponse>({
-        showToast: "A Conclave is already open for this item.",
-        ...(link ? { navigateTo: link } : {}),
-      });
+    // navigateTo needs an absolute URL; the raw permalink is relative.
+    const postId = result.conclave?.conclavePostId ?? result.postId;
+    if (postId) {
+      const link = `https://www.reddit.com/r/${context.subredditName}/comments/${postId.replace(/^t3_/, "")}`;
+      return c.json<UiResponse>({ navigateTo: link });
     }
 
+    // Fallback if the post id is somehow unavailable: at least confirm with a toast.
     return c.json<UiResponse>({
-      showToast: { text: "Conclave opened.", appearance: "success" },
-      ...(result.conclavePostUrl ? { navigateTo: result.conclavePostUrl } : {}),
+      showToast: {
+        text: result.alreadyExisted
+          ? "A Conclave is already open for this item."
+          : "Conclave opened.",
+        appearance: "success",
+      },
     });
   } catch (e) {
     console.error("[Memex] route-submit failed:", e);
