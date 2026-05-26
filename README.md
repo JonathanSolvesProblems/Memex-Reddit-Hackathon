@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/default-icon.png" alt="Memex" width="120" height="120" />
+  <img src="https://raw.githubusercontent.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/main/assets/default-icon.png" alt="Memex" width="120" height="120" />
 </p>
 
 # Memex · institutional memory for mod teams
@@ -71,7 +71,7 @@ vendor-agnostic and easy to extend. It is **off by default**, and with the toggl
 off or no key Memex never makes an external call (pure local, no errors). A
 mistyped key is caught on save, and the dashboard reminds you to add one if the
 toggle is on without a key. Any failure falls back to the local engine, so the
-tool stays fully functional and private out of the box. See [PRIVACY.md](PRIVACY.md).
+tool stays fully functional and private out of the box. See [PRIVACY.md](https://github.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/blob/main/PRIVACY.md).
 
 ### Conclave (async team decisions)
 Borderline items become mod-only decision rooms. Mods vote
@@ -124,7 +124,7 @@ are the delivery mechanism; the memory is the moat.
 - **No automated bans:** bans require a human click.
 - **Local-first, private by default:** the matching engine is fixed local
   computation. The optional semantic layer is opt-in, off by default, and
-  documented in [PRIVACY.md](PRIVACY.md). No Reddit data is used to train models.
+  documented in [PRIVACY.md](https://github.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/blob/main/PRIVACY.md). No Reddit data is used to train models.
 - **Per-subreddit isolation:** per-subreddit Redis, no cross-sub data sharing.
 - **Mod-only data exposure:** Conclave voting and mod actions are gated to
   moderators server-side.
