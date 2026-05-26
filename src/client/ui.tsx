@@ -49,7 +49,7 @@ export function StackedBar({ counts }: { counts: Record<VoteChoice, number> }) {
           ) : null,
         )}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5">
         {CHOICES.filter((c) => counts[c] > 0).map((c) => (
           <span
             key={c}

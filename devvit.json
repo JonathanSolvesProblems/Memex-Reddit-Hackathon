@@ -130,15 +130,6 @@
     }
   },
   "settings": {
-    "global": {
-      "embeddingApiKey": {
-        "type": "string",
-        "label": "Embedding API key (optional, for semantic matching)",
-        "helpText": "Only needed if you turn on Semantic matching. Paste an OpenAI key (sk-...) or Google Gemini key (AIza...) and Memex auto-detects the provider. Leave blank to run fully local with no setup and no errors. Gemini also needs its host added to permissions.http.domains.",
-        "isSecret": true,
-        "validationEndpoint": "/internal/settings/validate-key"
-      }
-    },
     "subreddit": {
       "quorumSize": {
         "type": "number",
@@ -178,9 +169,15 @@
       },
       "semanticEnabled": {
         "type": "boolean",
-        "label": "Semantic matching (optional, needs an Embedding API key)",
-        "helpText": "Off by default. When on, also set the global Embedding API key. With no key it safely stays on the local engine (no errors), and the dashboard reminds you to add one.",
+        "label": "Semantic matching (optional)",
+        "helpText": "Off by default. When on, paste an Embedding API key below. With no key it safely stays on the local engine (no errors), and the dashboard reminds you to add one.",
         "defaultValue": false
+      },
+      "embeddingApiKey": {
+        "type": "string",
+        "label": "Embedding API key (only if Semantic matching is on)",
+        "helpText": "Paste an OpenAI key (sk-...) or Google Gemini key (AIza...); Memex auto-detects the provider. Leave blank to run fully local with no errors. Stored for this subreddit and visible to your mod team, so use a usage-limited key. (Gemini also needs its host added to permissions.http.domains.)",
+        "validationEndpoint": "/internal/settings/validate-key"
       },
       "semanticWeight": {
         "type": "number",

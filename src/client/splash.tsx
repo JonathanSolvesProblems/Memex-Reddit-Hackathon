@@ -38,7 +38,7 @@ function OpenButton({ label }: { label: string }) {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col justify-center gap-3 bg-slate-950 p-5 text-slate-100">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-3 bg-slate-950 p-5 text-center text-slate-100">
       {children}
     </div>
   );
@@ -61,7 +61,7 @@ export const Splash = () => {
     const resolved = conclave.closed ? conclave.resolution : undefined;
     return (
       <Shell>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <Badge tone="orange">Conclave</Badge>
           <span className="text-xs text-slate-400">
             {resolved ? "resolved" : `${tally.total}/${quorumSize} votes`}
@@ -103,7 +103,7 @@ export const Splash = () => {
   const rb = data.rulebook;
   return (
     <Shell>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <Badge tone="orange">Living Rulebook</Badge>
         {rb?.semanticEnabled && <Badge tone="emerald">semantic</Badge>}
       </div>
