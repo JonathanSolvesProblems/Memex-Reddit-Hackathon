@@ -55,6 +55,8 @@ export type RulebookData = {
   openConclaves: ConclaveSummary[];
   shadowMods: string[];
   semanticEnabled: boolean;
+  /** Toggle is on but no usable key is configured (gentle in-app hint, not an error). */
+  semanticNeedsKey: boolean;
   probes: string[];
 };
 

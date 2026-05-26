@@ -137,6 +137,7 @@ export async function buildRulebookData(
     openConclaves,
     shadowMods,
     semanticEnabled: sem.enabled,
+    semanticNeedsKey: sem.toggleOn && !sem.enabled,
     probes: SEED_DEMO_PROBES,
   };
 }

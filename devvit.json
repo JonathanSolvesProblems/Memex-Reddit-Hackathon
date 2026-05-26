@@ -131,11 +131,12 @@
   },
   "settings": {
     "global": {
-      "openaiApiKey": {
+      "embeddingApiKey": {
         "type": "string",
-        "label": "OpenAI API key (optional, for semantic matching)",
-        "helpText": "When set, Memex blends OpenAI embedding similarity into Decision DNA. Leave blank to run fully local. Enable per subreddit with the Semantic matching toggle.",
-        "isSecret": true
+        "label": "Embedding API key (optional, for semantic matching)",
+        "helpText": "Only needed if you turn on Semantic matching. Paste an OpenAI key (sk-...) or Google Gemini key (AIza...) and Memex auto-detects the provider. Leave blank to run fully local with no setup and no errors. Gemini also needs its host added to permissions.http.domains.",
+        "isSecret": true,
+        "validationEndpoint": "/internal/settings/validate-key"
       }
     },
     "subreddit": {
@@ -177,8 +178,8 @@
       },
       "semanticEnabled": {
         "type": "boolean",
-        "label": "Semantic matching (needs the global OpenAI API key)",
-        "helpText": "Blends embedding similarity into precedent matching. Falls back to the local engine if no key is set.",
+        "label": "Semantic matching (optional, needs an Embedding API key)",
+        "helpText": "Off by default. When on, also set the global Embedding API key. With no key it safely stays on the local engine (no errors), and the dashboard reminds you to add one.",
         "defaultValue": false
       },
       "semanticWeight": {

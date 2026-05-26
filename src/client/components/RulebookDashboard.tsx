@@ -31,6 +31,13 @@ export function RulebookDashboard({ data }: { data: RulebookData }) {
           team's Decision DNA before anyone acts, so rulings stay consistent even
           as mods come and go.
         </p>
+        {data.semanticNeedsKey && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Semantic matching is on, but no embedding API key is set. Add one in
+            the app settings to enable it, or leave it off to keep running on the
+            local engine. Everything works either way.
+          </div>
+        )}
       </header>
 
       <div className="grid grid-cols-3 gap-3">

@@ -45,14 +45,29 @@ describe("getSemanticConfig", () => {
     expect((await getSemanticConfig()).enabled).toBe(false);
   });
 
-  it("enables only with both a key and the toggle, and scales the weight", async () => {
+  it("enables with a recognized key + toggle, detects the provider, scales weight", async () => {
     __setSettings({
       semanticEnabled: true,
-      openaiApiKey: "sk-test",
+      embeddingApiKey: "sk-test",
       semanticWeight: 80,
     });
     const c = await getSemanticConfig();
     expect(c.enabled).toBe(true);
+    expect(c.provider?.id).toBe("openai");
     expect(c.weight).toBeCloseTo(0.8, 5);
+  });
+
+  it("detects Gemini keys", async () => {
+    __setSettings({ semanticEnabled: true, embeddingApiKey: "AIzaSyTest123" });
+    const c = await getSemanticConfig();
+    expect(c.enabled).toBe(true);
+    expect(c.provider?.id).toBe("gemini");
+  });
+
+  it("stays disabled for an unrecognized key (e.g. Anthropic has no embeddings)", async () => {
+    __setSettings({ semanticEnabled: true, embeddingApiKey: "sk-ant-xyz" });
+    const c = await getSemanticConfig();
+    expect(c.enabled).toBe(false);
+    expect(c.provider).toBeUndefined();
   });
 });
