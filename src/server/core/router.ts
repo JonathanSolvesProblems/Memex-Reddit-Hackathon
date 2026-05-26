@@ -1,15 +1,15 @@
-import type { TriggerContext } from "@devvit/public-api";
-import type { QuorumSettings } from "../settings.js";
-import type { RoutingDecision } from "../types.js";
+import { reddit } from "@devvit/web/server";
+import type { QuorumSettings } from "./settings";
+import type { RoutingDecision } from "../../shared/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export interface RouteEvaluation {
+export type RouteEvaluation = {
   contentText: string;
   authorName: string;
   reportCount: number;
   authorCreatedAt?: number;
-}
+};
 
 export function evaluateAutoRoute(
   input: RouteEvaluation,
@@ -59,11 +59,10 @@ export function evaluateAutoRoute(
 }
 
 export async function getAuthorCreatedAt(
-  context: Pick<TriggerContext, "reddit">,
   authorName: string,
 ): Promise<number | undefined> {
   try {
-    const user = await context.reddit.getUserByUsername(authorName);
+    const user = await reddit.getUserByUsername(authorName);
     if (!user) return undefined;
     const createdAt =
       (user as unknown as { createdAt?: Date }).createdAt ??

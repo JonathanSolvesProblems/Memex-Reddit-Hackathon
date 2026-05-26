@@ -1,4 +1,4 @@
-import type { Precedent, VoteChoice } from "./types.js";
+import type { Precedent, VoteChoice } from "../../shared/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -1,42 +1,39 @@
-import type { RedisClient, TriggerContext } from "@devvit/public-api";
+import { redis } from "@devvit/web/server";
 import type {
   DecisionAnalysis,
   Precedent,
   PrecedentMatch,
   VoteChoice,
-} from "../types.js";
-import { VOTE_CHOICES } from "../types.js";
-import { K, recentPrecedentIds, savePrecedent } from "../redis.js";
-import { fingerprint, tokenize, tokenSimilarity } from "./embed.js";
+} from "../../shared/types";
+import { VOTE_CHOICES } from "../../shared/types";
+import { K, recentPrecedentIds, savePrecedent } from "./redis";
+import { fingerprint, tokenize, tokenSimilarity } from "./embed";
 
 export async function recordDecision(
-  redis: RedisClient,
   precedent: Omit<Precedent, "fingerprint">,
 ): Promise<Precedent> {
   const tokens = tokenize(precedent.contentSnippet);
   const fp = fingerprint(tokens);
   const enriched: Precedent = { ...precedent, fingerprint: fp };
-  await savePrecedent(redis, enriched, tokens);
+  await savePrecedent(enriched, tokens);
   return enriched;
 }
 
-export interface RetrieveOptions {
+export type RetrieveOptions = {
   limit: number;
   minSimilarity: number;
   topK?: number;
   excludeTargetIds?: string[];
-}
+};
 
 async function scoreAll(
-  context: Pick<TriggerContext, "redis">,
   contentSnippet: string,
   options: RetrieveOptions,
 ): Promise<PrecedentMatch[]> {
-  const { redis } = context;
   const queryTokens = tokenize(contentSnippet);
   if (queryTokens.length === 0) return [];
 
-  const ids = await recentPrecedentIds(redis, options.limit);
+  const ids = await recentPrecedentIds(options.limit);
   const excludeSet = new Set(options.excludeTargetIds ?? []);
   const candidates = ids.filter((id) => !excludeSet.has(id));
   if (candidates.length === 0) return [];
@@ -71,11 +68,10 @@ async function scoreAll(
 }
 
 export async function findPrecedents(
-  context: Pick<TriggerContext, "redis">,
   contentSnippet: string,
   options: RetrieveOptions,
 ): Promise<PrecedentMatch[]> {
-  const all = await scoreAll(context, contentSnippet, options);
+  const all = await scoreAll(contentSnippet, options);
   return all.slice(0, options.topK ?? 3);
 }
 
@@ -85,11 +81,10 @@ export async function findPrecedents(
  * way. This is the institutional-memory signal no other mod tool surfaces.
  */
 export async function analyzeDecision(
-  context: Pick<TriggerContext, "redis">,
   contentSnippet: string,
   options: RetrieveOptions,
 ): Promise<DecisionAnalysis> {
-  const all = await scoreAll(context, contentSnippet, options);
+  const all = await scoreAll(contentSnippet, options);
   const counts: Record<VoteChoice, number> = {
     remove: 0,
     keep: 0,
@@ -101,7 +96,6 @@ export async function analyzeDecision(
   let max = 0;
   for (const c of VOTE_CHOICES) if (counts[c] > max) max = counts[c];
   const leaders = VOTE_CHOICES.filter((c) => counts[c] === max && max > 0);
-  // No single dominant outcome when the top choices tie — that's a "split".
   const dominant = leaders.length === 1 ? leaders[0] : undefined;
 
   const consideredCount = all.length;
@@ -118,8 +112,8 @@ export async function analyzeDecision(
 }
 
 /**
- * "Decision DNA" card for the menu modal. Form descriptions collapse newlines,
- * so this reads as clean flowing prose with sentence breaks (no em-dashes).
+ * "Decision DNA" summary string. Reads as clean flowing prose with sentence
+ * breaks (no em-dashes).
  */
 export function formatDecisionDNA(analysis: DecisionAnalysis): string {
   if (analysis.consideredCount === 0) {

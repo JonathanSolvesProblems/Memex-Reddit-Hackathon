@@ -1,11 +1,11 @@
-import type { RedisClient } from "@devvit/public-api";
+import { redis } from "@devvit/web/server";
 import type {
   Conclave,
   Vote,
   Precedent,
   CalibrationRecord,
   VoteChoice,
-} from "./types.js";
+} from "../../shared/types";
 
 export const K = {
   conclave: (id: string) => `conclave:${id}`,
@@ -29,13 +29,13 @@ export const K = {
   routedTargets: () => "routed-targets",
   viewing: (conclaveId: string) => `viewing:${conclaveId}`,
   sweepReported: () => "sweep-reported",
+  rulebookPost: (postId: string) => `rulebook-post:${postId}`,
 };
 
 const VIEW_WINDOW_MS = 6_000;
 
 /** Records that a mod is currently viewing a conclave (Redis-backed presence). */
 export async function touchViewer(
-  redis: RedisClient,
   conclaveId: string,
   modName: string,
 ): Promise<void> {
@@ -46,13 +46,9 @@ export async function touchViewer(
 }
 
 /** Distinct mods who pinged within the presence window. */
-export async function countActiveViewers(
-  redis: RedisClient,
-  conclaveId: string,
-): Promise<number> {
+export async function countActiveViewers(conclaveId: string): Promise<number> {
   const now = Date.now();
   const cutoff = now - VIEW_WINDOW_MS;
-  // Opportunistically drop stale heartbeats so the key never grows unbounded.
   await redis.zRemRangeByScore(K.viewing(conclaveId), 0, cutoff - 1);
   const entries = await redis.zRange(K.viewing(conclaveId), cutoff, now, {
     by: "score",
@@ -60,10 +56,7 @@ export async function countActiveViewers(
   return new Set(entries.map((e) => e.member)).size;
 }
 
-export async function saveConclave(
-  redis: RedisClient,
-  conclave: Conclave,
-): Promise<void> {
+export async function saveConclave(conclave: Conclave): Promise<void> {
   await redis.set(K.conclave(conclave.id), JSON.stringify(conclave));
   await redis.set(K.conclaveByTarget(conclave.targetId), conclave.id);
   if (conclave.conclavePostId) {
@@ -83,55 +76,49 @@ export async function saveConclave(
   });
 }
 
-export async function getConclave(
-  redis: RedisClient,
-  id: string,
-): Promise<Conclave | undefined> {
+export async function getConclave(id: string): Promise<Conclave | undefined> {
   const raw = await redis.get(K.conclave(id));
   if (!raw) return undefined;
   return JSON.parse(raw) as Conclave;
 }
 
 export async function getConclaveByTarget(
-  redis: RedisClient,
   targetId: string,
 ): Promise<Conclave | undefined> {
   const id = await redis.get(K.conclaveByTarget(targetId));
   if (!id) return undefined;
-  return getConclave(redis, id);
+  return getConclave(id);
 }
 
-export async function listOpenConclaves(
-  redis: RedisClient,
-  before: number,
-): Promise<string[]> {
+export async function getConclaveByPost(
+  postId: string,
+): Promise<Conclave | undefined> {
+  const id = await redis.get(K.conclaveByPost(postId));
+  if (!id) return undefined;
+  return getConclave(id);
+}
+
+export async function listOpenConclaves(before: number): Promise<string[]> {
   const entries = await redis.zRange(K.openConclaves(), 0, before, {
     by: "score",
   });
   return entries.map((e) => e.member);
 }
 
-export async function castVote(
-  redis: RedisClient,
-  vote: Vote,
-): Promise<void> {
+export async function castVote(vote: Vote): Promise<void> {
   await redis.set(K.vote(vote.conclaveId, vote.modName), JSON.stringify(vote));
   await redis.hSet(K.votesByConclave(vote.conclaveId), {
     [vote.modName]: JSON.stringify(vote),
   });
 }
 
-export async function getVotes(
-  redis: RedisClient,
-  conclaveId: string,
-): Promise<Vote[]> {
+export async function getVotes(conclaveId: string): Promise<Vote[]> {
   const raw = await redis.hGetAll(K.votesByConclave(conclaveId));
   if (!raw) return [];
   return Object.values(raw).map((v) => JSON.parse(v) as Vote);
 }
 
 export async function savePrecedent(
-  redis: RedisClient,
   precedent: Precedent,
   tokens: string[],
 ): Promise<void> {
@@ -143,22 +130,14 @@ export async function savePrecedent(
   });
 }
 
-export async function getPrecedent(
-  redis: RedisClient,
-  id: string,
-): Promise<Precedent | undefined> {
+export async function getPrecedent(id: string): Promise<Precedent | undefined> {
   const raw = await redis.get(K.precedent(id));
   if (!raw) return undefined;
   return JSON.parse(raw) as Precedent;
 }
 
-export async function recentPrecedentIds(
-  redis: RedisClient,
-  limit: number,
-): Promise<string[]> {
+export async function recentPrecedentIds(limit: number): Promise<string[]> {
   if (limit <= 0) return [];
-  // Bounded read: the `limit` highest-scored (most recent) members, newest
-  // first — no full-index load even on very large subreddits.
   const entries = await redis.zRange(K.precedentIndex(), 0, limit - 1, {
     reverse: true,
     by: "rank",
@@ -166,33 +145,21 @@ export async function recentPrecedentIds(
   return entries.map((e) => e.member);
 }
 
-export async function precedentCount(redis: RedisClient): Promise<number> {
+export async function precedentCount(): Promise<number> {
   return redis.zCard(K.precedentIndex());
 }
 
-/**
- * Accurate count of decisions recorded at or after `since`, read straight from
- * the timestamp-scored index (no full-history load). Used for the Rulebook's
- * "this week" stat so it stays exact even past the loaded-precedent window.
- */
-export async function precedentCountSince(
-  redis: RedisClient,
-  since: number,
-): Promise<number> {
-  const entries = await redis.zRange(K.precedentIndex(), since, Number.MAX_SAFE_INTEGER, {
-    by: "score",
-  });
+export async function precedentCountSince(since: number): Promise<number> {
+  const entries = await redis.zRange(
+    K.precedentIndex(),
+    since,
+    Number.MAX_SAFE_INTEGER,
+    { by: "score" },
+  );
   return entries.length;
 }
 
-/**
- * Remove every seeded demo precedent (id prefix `seed_`) from the index and its
- * backing keys, leaving real decisions untouched. Returns the number removed.
- * Used to keep `seedDemoData` idempotent and to power a "clear demo data" menu.
- */
-export async function clearSeededPrecedents(
-  redis: RedisClient,
-): Promise<number> {
+export async function clearSeededPrecedents(): Promise<number> {
   const entries = await redis.zRange(
     K.precedentIndex(),
     0,
@@ -210,62 +177,38 @@ export async function clearSeededPrecedents(
   return seeded.length;
 }
 
-/** Remove a mod's seeded calibration trail (fields keyed `seed_calib_*`). */
-export async function clearSeededCalibration(
-  redis: RedisClient,
-  modName: string,
-): Promise<void> {
+export async function clearSeededCalibration(modName: string): Promise<void> {
   const raw = await redis.hGetAll(K.calibration(modName));
   if (!raw) return;
   const fields = Object.keys(raw).filter((f) => f.startsWith("seed_calib_"));
   if (fields.length > 0) await redis.hDel(K.calibration(modName), fields);
 }
 
-export async function getPrecedentTokens(
-  redis: RedisClient,
-  id: string,
-): Promise<string[]> {
+export async function getPrecedentTokens(id: string): Promise<string[]> {
   const raw = await redis.get(K.precedentTokens(id));
   if (!raw) return [];
   return raw.split(" ").filter(Boolean);
 }
 
-export async function markTargetRouted(
-  redis: RedisClient,
-  targetId: string,
-): Promise<void> {
-  await redis.zAdd(K.routedTargets(), {
-    member: targetId,
-    score: Date.now(),
-  });
+export async function markTargetRouted(targetId: string): Promise<void> {
+  await redis.zAdd(K.routedTargets(), { member: targetId, score: Date.now() });
 }
 
-export async function wasRouted(
-  redis: RedisClient,
-  targetId: string,
-): Promise<boolean> {
+export async function wasRouted(targetId: string): Promise<boolean> {
   const score = await redis.zScore(K.routedTargets(), targetId);
   return score !== undefined && score !== null;
 }
 
-/** True if the consistency sweep already flagged/reported this item. */
-export async function wasSweepReported(
-  redis: RedisClient,
-  itemId: string,
-): Promise<boolean> {
+export async function wasSweepReported(itemId: string): Promise<boolean> {
   const score = await redis.zScore(K.sweepReported(), itemId);
   return score !== undefined && score !== null;
 }
 
-export async function markSweepReported(
-  redis: RedisClient,
-  itemId: string,
-): Promise<void> {
+export async function markSweepReported(itemId: string): Promise<void> {
   await redis.zAdd(K.sweepReported(), { member: itemId, score: Date.now() });
 }
 
 export async function recordCalibration(
-  redis: RedisClient,
   record: CalibrationRecord,
 ): Promise<void> {
   await redis.hSet(K.calibration(record.modName), {
@@ -278,7 +221,6 @@ export async function recordCalibration(
 }
 
 export async function getCalibrationFor(
-  redis: RedisClient,
   modName: string,
 ): Promise<CalibrationRecord[]> {
   const raw = await redis.hGetAll(K.calibration(modName));
@@ -286,16 +228,12 @@ export async function getCalibrationFor(
   return Object.values(raw).map((v) => JSON.parse(v) as CalibrationRecord);
 }
 
-export async function isShadowMod(
-  redis: RedisClient,
-  modName: string,
-): Promise<boolean> {
+export async function isShadowMod(modName: string): Promise<boolean> {
   const raw = await redis.hGet(K.shadowMods(), modName);
   return raw === "true";
 }
 
 export async function setShadowMod(
-  redis: RedisClient,
   modName: string,
   shadow: boolean,
 ): Promise<void> {
@@ -306,14 +244,20 @@ export async function setShadowMod(
   }
 }
 
-export async function listShadowMods(
-  redis: RedisClient,
-): Promise<string[]> {
+export async function listShadowMods(): Promise<string[]> {
   const raw = await redis.hGetAll(K.shadowMods());
   if (!raw) return [];
   return Object.entries(raw)
     .filter(([, v]) => v === "true")
     .map(([k]) => k);
+}
+
+export async function markRulebookPost(postId: string): Promise<void> {
+  await redis.set(K.rulebookPost(postId), "1");
+}
+
+export async function isRulebookPost(postId: string): Promise<boolean> {
+  return (await redis.get(K.rulebookPost(postId))) === "1";
 }
 
 export function tallyVotes(votes: Vote[]): {
@@ -342,7 +286,7 @@ export function tallyVotes(votes: Vote[]): {
 
 /**
  * Order-independent plurality: returns the single leading choice, or undefined
- * if there is no votes or two-or-more choices tie for the lead.
+ * if there are no votes or two-or-more choices tie for the lead.
  */
 export function pluralityWinner(
   counts: Record<VoteChoice, number>,

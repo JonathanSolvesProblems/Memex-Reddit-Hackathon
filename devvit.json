@@ -1,21 +1,48 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "memex-mod",
-  "marketingAssets": {
-    "icon": "assets/default-icon.png"
+  "name": "memex-web",
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": {
+        "inline": true,
+        "entry": "splash.html"
+      },
+      "game": {
+        "entry": "game.html"
+      }
+    }
   },
-  "blocks": {
-    "entry": "src/main.tsx",
-    "triggers": [
-      "onPostSubmit",
-      "onCommentSubmit",
-      "onModAction",
-      "onModMail",
-      "onAppInstall",
-      "onAppUpgrade"
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Create a new post",
+        "description": "memex-web",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/post-create"
+      },
+      {
+        "label": "Example form",
+        "description": "Show a simple form",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/example-form"
+      }
     ]
   },
-  "dev": {
-    "subreddit": "memex_mod_dev"
+  "forms": {
+    "exampleForm": "/internal/form/example-submit"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
   }
 }
