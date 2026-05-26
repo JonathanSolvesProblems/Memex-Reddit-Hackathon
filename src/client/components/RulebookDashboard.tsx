@@ -1,13 +1,7 @@
 import { navigateTo } from "@devvit/web/client";
 import type { RulebookData } from "../../shared/api";
-import {
-  Badge,
-  CHOICE_META,
-  OutcomeBars,
-  Sparkline,
-  Stat,
-  countdown,
-} from "../ui";
+import { Badge, OutcomeBars, Sparkline, Stat } from "../ui";
+import { CHOICE_META, countdown } from "../format";
 import { ProbeTool } from "./ProbeTool";
 
 function postUrl(postId?: string): string | undefined {

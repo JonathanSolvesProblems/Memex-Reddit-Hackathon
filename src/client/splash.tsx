@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { requestExpandedMode } from "@devvit/web/client";
 import { useInit } from "./hooks/useInit";
-import { Badge, CHOICE_META } from "./ui";
+import { Badge } from "./ui";
+import { CHOICE_META } from "./format";
 
 function OpenButton({ label }: { label: string }) {
   return (

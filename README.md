@@ -4,7 +4,7 @@
 
 # Memex · institutional memory for mod teams
 
-![tests](https://img.shields.io/badge/tests-32_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-42_passing-brightgreen)
 ![built on](https://img.shields.io/badge/built_on-Devvit_Web-FF4500)
 ![stack](https://img.shields.io/badge/React_19-Hono-blue)
 ![semantic search](https://img.shields.io/badge/semantic_search-optional-8A2BE2)
@@ -166,8 +166,10 @@ npm run build
 
 ## Status
 
-Core engine verified by **32 automated tests** (tokenization, link-domain
+Core engine verified by **42 automated tests** (tokenization, link-domain
 matching, similarity, Decision DNA retrieval incl. split detection and self-
-exclusion, vote tally + quorum, auto-route rules, sweep flagging, semantic cosine
-and blend rescaling) running against an in-memory Redis. TypeScript type-check,
-ESLint, the Vite production build, and the full test suite are all green.
+exclusion, the full Conclave vote → quorum → resolve → precedent pipeline,
+shadow-vote exclusion, settings parsing, auto-route rules, sweep flagging, and
+semantic cosine + blend rescaling) running against an in-memory Redis. TypeScript
+type-check, ESLint (0 warnings), the Vite production build, and the full test
+suite are all green.

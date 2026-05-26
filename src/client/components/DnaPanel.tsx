@@ -1,5 +1,6 @@
 import type { DecisionAnalysis } from "../../shared/types";
-import { Badge, CHOICE_META, OutcomeBars } from "../ui";
+import { Badge, OutcomeBars } from "../ui";
+import { CHOICE_META } from "../format";
 
 /**
  * The headline feature rendered: the team's *decision pattern* on similar

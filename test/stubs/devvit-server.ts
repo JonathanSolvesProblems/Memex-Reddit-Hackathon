@@ -125,10 +125,26 @@ export const reddit = {
     return { id: "t5_demo", name: "demo" };
   },
   async getPostById(id: string) {
-    return { id, title: "", body: "", url: "", authorName: "author", permalink: "" };
+    return {
+      id,
+      title: "",
+      body: "",
+      url: "",
+      authorName: "author",
+      permalink: "",
+      async remove(): Promise<void> {},
+      async approve(): Promise<void> {},
+    };
   },
   async getCommentById(id: string) {
-    return { id, body: "", authorName: "author", permalink: "" };
+    return {
+      id,
+      body: "",
+      authorName: "author",
+      permalink: "",
+      async remove(): Promise<void> {},
+      async approve(): Promise<void> {},
+    };
   },
   async getUserByUsername() {
     return { createdAt: new Date() };
@@ -143,18 +159,26 @@ export const reddit = {
   },
 };
 
+let settingsStore: Record<string, unknown> = {};
+
 export const settings = {
-  async get(): Promise<undefined> {
-    return undefined;
+  async get<T>(name: string): Promise<T | undefined> {
+    return settingsStore[name] as T | undefined;
   },
   async getAll(): Promise<Record<string, unknown>> {
-    return {};
+    return { ...settingsStore };
   },
 };
+
+/** Test helper: set the values `settings.get`/`getAll` will return. */
+export function __setSettings(values: Record<string, unknown>): void {
+  settingsStore = { ...values };
+}
 
 /** Test helper: wipe all in-memory state between tests. */
 export function __resetStore(): void {
   strings.clear();
   hashes.clear();
   zsets.clear();
+  settingsStore = {};
 }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConclaveState } from "../../shared/api";
 import type { VoteChoice } from "../../shared/types";
 import { api } from "../api";
-import { Badge, CHOICE_META, CHOICES, countdown, relativeTime } from "../ui";
+import { Badge } from "../ui";
+import { CHOICE_META, CHOICES, countdown, relativeTime } from "../format";
 import { DnaPanel } from "./DnaPanel";
 
 const POLL_MS = 4000;
