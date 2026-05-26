@@ -7,7 +7,7 @@
     "rootDir": "../src/client"
   },
   "include": ["../src/client/**/*"],
-  "exclude": [],
+  "exclude": ["../src/client/**/*.test.ts", "../src/client/**/*.test.tsx"],
   "references": [
     {
       "path": "./tsconfig.shared.json"

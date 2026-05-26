@@ -6,8 +6,19 @@ import type {
   VoteChoice,
 } from "../../shared/types";
 import { VOTE_CHOICES } from "../../shared/types";
-import { K, recentPrecedentIds, savePrecedent } from "./redis";
+import {
+  K,
+  recentPrecedentIds,
+  savePrecedent,
+  savePrecedentEmbedding,
+} from "./redis";
 import { fingerprint, tokenize, tokenSimilarity } from "./embed";
+import {
+  cosine,
+  embedText,
+  getSemanticConfig,
+  rescaleSemantic,
+} from "./semantic";
 
 export async function recordDecision(
   precedent: Omit<Precedent, "fingerprint">,
@@ -16,6 +27,19 @@ export async function recordDecision(
   const fp = fingerprint(tokens);
   const enriched: Precedent = { ...precedent, fingerprint: fp };
   await savePrecedent(enriched, tokens);
+
+  // Optional semantic layer: embed and store the precedent vector when a key is
+  // configured. Best-effort — failures leave the lexical engine fully intact.
+  try {
+    const sem = await getSemanticConfig();
+    if (sem.enabled) {
+      const vec = await embedText(precedent.contentSnippet, sem);
+      if (vec) await savePrecedentEmbedding(enriched.id, vec);
+    }
+  } catch {
+    // best-effort; lexical matching does not depend on this
+  }
+
   return enriched;
 }
 
@@ -40,15 +64,39 @@ async function scoreAll(
 
   // One batched read for all candidate token strings, then score in memory.
   const tokenStrings = await redis.mGet(candidates.map(K.precedentTokens));
+
+  // Optional semantic layer: if enabled and the query embeds, pull candidate
+  // vectors in one batch. Candidates without a stored vector simply fall back to
+  // their lexical score, so mixed (some-embedded) corpora still work.
+  const sem = await getSemanticConfig();
+  let queryEmbed: number[] | undefined;
+  let candEmbeds: (number[] | undefined)[] = [];
+  if (sem.enabled) {
+    queryEmbed = await embedText(contentSnippet, sem);
+    if (queryEmbed) {
+      const rawEmbeds = await redis.mGet(candidates.map(K.precedentEmbed));
+      candEmbeds = rawEmbeds.map((r) =>
+        r ? (JSON.parse(r) as number[]) : undefined,
+      );
+    }
+  }
+
   const scored: { id: string; sim: number }[] = [];
   for (let i = 0; i < candidates.length; i++) {
+    const id = candidates[i];
     const raw = tokenStrings[i];
-    if (!raw) continue;
+    if (!id || !raw) continue;
     const tokens = raw.split(" ").filter(Boolean);
     if (tokens.length === 0) continue;
-    const sim = tokenSimilarity(queryTokens, tokens) * 100;
+    const lexical = tokenSimilarity(queryTokens, tokens) * 100;
+    let sim = lexical;
+    const candVec = candEmbeds[i];
+    if (queryEmbed && candVec) {
+      const semScore = rescaleSemantic(cosine(queryEmbed, candVec)) * 100;
+      sim = lexical * (1 - sem.weight) + semScore * sem.weight;
+    }
     if (sim < options.minSimilarity) continue;
-    scored.push({ id: candidates[i], sim });
+    scored.push({ id, sim });
   }
   if (scored.length === 0) return [];
 
@@ -57,10 +105,11 @@ async function scoreAll(
   const matches: PrecedentMatch[] = [];
   for (let i = 0; i < scored.length; i++) {
     const raw = records[i];
-    if (!raw) continue;
+    const entry = scored[i];
+    if (!raw || !entry) continue;
     matches.push({
       precedent: JSON.parse(raw) as Precedent,
-      similarity: scored[i].sim,
+      similarity: entry.sim,
     });
   }
 

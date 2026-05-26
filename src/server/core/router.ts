@@ -63,15 +63,7 @@ export async function getAuthorCreatedAt(
 ): Promise<number | undefined> {
   try {
     const user = await reddit.getUserByUsername(authorName);
-    if (!user) return undefined;
-    const createdAt =
-      (user as unknown as { createdAt?: Date }).createdAt ??
-      (user as unknown as { created?: number }).created;
-    if (createdAt instanceof Date) return createdAt.getTime();
-    if (typeof createdAt === "number") {
-      return createdAt < 1e12 ? createdAt * 1000 : createdAt;
-    }
-    return undefined;
+    return user?.createdAt?.getTime();
   } catch {
     return undefined;
   }

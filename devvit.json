@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "memex-web",
+  "name": "memex-mod",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -17,29 +17,176 @@
     "dir": "dist/server",
     "entry": "index.cjs"
   },
+  "permissions": {
+    "reddit": {
+      "enable": true,
+      "scope": "moderator"
+    },
+    "redis": true,
+    "http": {
+      "enable": true,
+      "domains": ["api.openai.com"]
+    }
+  },
   "menu": {
     "items": [
       {
-        "label": "Create a new post",
-        "description": "memex-web",
-        "location": "subreddit",
+        "label": "Memex: Decision DNA for this post",
+        "description": "See how the team ruled on similar content",
+        "location": "post",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/post-create"
+        "endpoint": "/internal/menu/dna-post"
       },
       {
-        "label": "Example form",
-        "description": "Show a simple form",
+        "label": "Memex: Decision DNA for this comment",
+        "description": "See how the team ruled on similar content",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/dna-comment"
+      },
+      {
+        "label": "Memex: Send post to a Conclave",
+        "description": "Open an async mod decision room for this post",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/route-post"
+      },
+      {
+        "label": "Memex: Send comment to a Conclave",
+        "description": "Open an async mod decision room for this comment",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/route-comment"
+      },
+      {
+        "label": "Memex: Open Living Rulebook",
+        "description": "Open the subreddit's institutional-memory dashboard",
         "location": "subreddit",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/example-form"
+        "endpoint": "/internal/menu/open-rulebook"
+      },
+      {
+        "label": "Memex: Seed demo data",
+        "description": "Load a sample precedent corpus for the demo",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/seed-demo"
+      },
+      {
+        "label": "Memex: Clear demo data",
+        "description": "Remove all seeded demo precedents",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/clear-demo"
+      },
+      {
+        "label": "Memex: Run Consistency Sweep now",
+        "description": "Scan recent posts for missed precedent matches",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/run-sweep"
+      },
+      {
+        "label": "Memex: Send calibration digest now",
+        "description": "Email shadow mods their weekly calibration report",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/run-digest"
+      },
+      {
+        "label": "Memex: Toggle my shadow mode",
+        "description": "Turn calibration shadow mode on or off for yourself",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/toggle-shadow"
       }
     ]
   },
   "forms": {
-    "exampleForm": "/internal/form/example-submit"
+    "routeForm": "/internal/form/route-submit",
+    "dnaForm": "/internal/form/dna-ack"
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onAppUpgrade": "/internal/triggers/on-app-upgrade",
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onCommentSubmit": "/internal/triggers/on-comment-submit",
+    "onModAction": "/internal/triggers/on-mod-action"
+  },
+  "scheduler": {
+    "tasks": {
+      "conclave-sweep": {
+        "endpoint": "/internal/scheduler/conclave-sweep",
+        "cron": "*/5 * * * *"
+      },
+      "consistency-sweep": {
+        "endpoint": "/internal/scheduler/consistency-sweep",
+        "cron": "0 */6 * * *"
+      },
+      "weekly-digest": {
+        "endpoint": "/internal/scheduler/weekly-digest",
+        "cron": "0 14 * * 1"
+      }
+    }
+  },
+  "settings": {
+    "global": {
+      "openaiApiKey": {
+        "type": "string",
+        "label": "OpenAI API key (optional, for semantic matching)",
+        "helpText": "When set, Memex blends OpenAI embedding similarity into Decision DNA. Leave blank to run fully local. Enable per subreddit with the Semantic matching toggle.",
+        "isSecret": true
+      }
+    },
+    "subreddit": {
+      "quorumSize": {
+        "type": "number",
+        "label": "Quorum size (votes to resolve a Conclave)",
+        "defaultValue": 3
+      },
+      "voteWindowHours": {
+        "type": "number",
+        "label": "Vote window (hours before a Conclave auto-resolves)",
+        "defaultValue": 24
+      },
+      "autoRouteEnabled": {
+        "type": "boolean",
+        "label": "Auto-route new content into Conclaves",
+        "helpText": "Requires at least one auto-route keyword below.",
+        "defaultValue": false
+      },
+      "autoRouteKeywords": {
+        "type": "paragraph",
+        "label": "Auto-route keywords (comma or newline separated)",
+        "helpText": "New posts/comments containing any of these are routed to a Conclave."
+      },
+      "banRequiresHumanClick": {
+        "type": "boolean",
+        "label": "Escalations never auto-ban (require a human click)",
+        "defaultValue": true
+      },
+      "autoSweepEnabled": {
+        "type": "boolean",
+        "label": "Run the Consistency Sweep on a schedule",
+        "defaultValue": false
+      },
+      "sweepMinConsistency": {
+        "type": "number",
+        "label": "Sweep: minimum precedent consistency to flag (%)",
+        "defaultValue": 70
+      },
+      "semanticEnabled": {
+        "type": "boolean",
+        "label": "Semantic matching (needs the global OpenAI API key)",
+        "helpText": "Blends embedding similarity into precedent matching. Falls back to the local engine if no key is set.",
+        "defaultValue": false
+      },
+      "semanticWeight": {
+        "type": "number",
+        "label": "Semantic blend weight (0-100, balance vs. local matching)",
+        "defaultValue": 50
+      }
+    }
   },
   "scripts": {
     "dev": "vite build --watch",

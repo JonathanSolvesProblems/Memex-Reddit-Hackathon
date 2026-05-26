@@ -15,7 +15,10 @@ export function decisionsByDay(
   if (days <= 0) return bins;
   for (const p of precedents) {
     const idx = Math.floor((now - p.decidedAt) / DAY_MS);
-    if (idx >= 0 && idx < days) bins[days - 1 - idx] += 1;
+    if (idx >= 0 && idx < days) {
+      const j = days - 1 - idx;
+      bins[j] = (bins[j] ?? 0) + 1;
+    }
   }
   return bins;
 }

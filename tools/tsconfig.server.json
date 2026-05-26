@@ -9,7 +9,7 @@
     "rootDir": "../src/server"
   },
   "include": ["../src/server/**/*"],
-  "exclude": [],
+  "exclude": ["../src/server/**/*.test.ts"],
   "references": [
     {
       "path": "./tsconfig.shared.json"

@@ -10,5 +10,5 @@
     "rootDir": "../src/shared"
   },
   "include": ["../src/shared/**/*"],
-  "exclude": []
+  "exclude": ["../src/shared/**/*.test.ts"]
 }

@@ -21,6 +21,7 @@ export const K = {
   precedent: (id: string) => `precedent:${id}`,
   precedentIndex: () => "precedent:index",
   precedentTokens: (id: string) => `precedent:tokens:${id}`,
+  precedentEmbed: (id: string) => `precedent:embed:${id}`,
 
   calibration: (modName: string) => `calibration:${modName}`,
   calibrationMods: () => "calibration:mods",
@@ -30,6 +31,7 @@ export const K = {
   viewing: (conclaveId: string) => `viewing:${conclaveId}`,
   sweepReported: () => "sweep-reported",
   rulebookPost: (postId: string) => `rulebook-post:${postId}`,
+  rulebookCurrent: () => "rulebook:current",
 };
 
 const VIEW_WINDOW_MS = 6_000;
@@ -130,10 +132,29 @@ export async function savePrecedent(
   });
 }
 
+/** Stores the optional semantic embedding for a precedent (best-effort layer). */
+export async function savePrecedentEmbedding(
+  id: string,
+  vector: number[],
+): Promise<void> {
+  await redis.set(K.precedentEmbed(id), JSON.stringify(vector));
+}
+
 export async function getPrecedent(id: string): Promise<Precedent | undefined> {
   const raw = await redis.get(K.precedent(id));
   if (!raw) return undefined;
   return JSON.parse(raw) as Precedent;
+}
+
+/** Batched fetch of precedents by id (one Redis round-trip), order preserved. */
+export async function getPrecedentsByIds(ids: string[]): Promise<Precedent[]> {
+  if (ids.length === 0) return [];
+  const raws = await redis.mGet(ids.map(K.precedent));
+  const out: Precedent[] = [];
+  for (const raw of raws) {
+    if (raw) out.push(JSON.parse(raw) as Precedent);
+  }
+  return out;
 }
 
 export async function recentPrecedentIds(limit: number): Promise<string[]> {
@@ -172,6 +193,7 @@ export async function clearSeededPrecedents(): Promise<number> {
   for (const id of seeded) {
     await redis.del(K.precedent(id));
     await redis.del(K.precedentTokens(id));
+    await redis.del(K.precedentEmbed(id));
     await redis.zRem(K.precedentIndex(), [id]);
   }
   return seeded.length;
@@ -258,6 +280,15 @@ export async function markRulebookPost(postId: string): Promise<void> {
 
 export async function isRulebookPost(postId: string): Promise<boolean> {
   return (await redis.get(K.rulebookPost(postId))) === "1";
+}
+
+/** Singleton pointer to the subreddit's current Living Rulebook post, if any. */
+export async function setCurrentRulebookPost(postId: string): Promise<void> {
+  await redis.set(K.rulebookCurrent(), postId);
+}
+
+export async function getCurrentRulebookPost(): Promise<string | undefined> {
+  return (await redis.get(K.rulebookCurrent())) ?? undefined;
 }
 
 export function tallyVotes(votes: Vote[]): {

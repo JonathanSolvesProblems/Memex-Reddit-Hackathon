@@ -1,17 +1,18 @@
 {
   "private": true,
-  "name": "memex-web",
+  "name": "memex-mod",
   "version": "0.0.0",
   "license": "BSD-3-Clause",
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "deploy": "npm run type-check && npm run lint && devvit upload",
+    "deploy": "npm run type-check && npm run lint && npm test && devvit upload",
     "dev": "devvit playtest",
     "launch": "npm run deploy && devvit publish",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "login": "devvit login",
     "prettier": "prettier --write .",
+    "test": "vitest run",
     "type-check": "tsc --build"
   },
   "engines": {
@@ -41,6 +42,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.4",
-    "vite": "8.0.13"
+    "vite": "8.0.13",
+    "vitest": "^3.2.4"
   }
 }

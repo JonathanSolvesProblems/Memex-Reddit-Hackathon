@@ -1,66 +1,96 @@
-import './index.css';
+import "./index.css";
 
-import { navigateTo } from '@devvit/web/client';
-import { context, requestExpandedMode } from '@devvit/web/client';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { StrictMode } from "react";
+import type { ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import { requestExpandedMode } from "@devvit/web/client";
+import { useInit } from "./hooks/useInit";
+import { Badge, CHOICE_META } from "./ui";
 
-export const Splash = () => {
+function OpenButton({ label }: { label: string }) {
   return (
-    <div className="flex relative flex-col justify-center items-center min-h-screen gap-4 bg-white dark:bg-gray-900">
-      <img
-        className="object-contain w-1/2 max-w-[250px] mx-auto"
-        src="/snoo.png"
-        alt="Snoo"
-      />
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-          Hey {context.username ?? 'user'} 👋
-        </h1>
-        <p className="text-base text-center text-gray-600 dark:text-gray-300">
-          Edit{' '}
-          <span className="bg-[#e5ebee] dark:bg-gray-700 px-1 py-0.5 rounded">
-            src/client/splash.tsx
-          </span>{' '}
-          to get started.
-        </p>
-      </div>
-      <div className="flex items-center justify-center mt-5">
-        <button
-          className="flex items-center justify-center bg-[#d93900] dark:bg-orange-600 text-white w-auto h-10 rounded-full cursor-pointer transition-colors px-4 hover:bg-[#c23300] dark:hover:bg-orange-700"
-          onClick={(e) => requestExpandedMode(e.nativeEvent, 'game')}
-        >
-          Tap to Start
-        </button>
-      </div>
-      <footer className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 text-[0.8em] text-gray-600 dark:text-gray-400">
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://developers.reddit.com/docs')}
-        >
-          Docs
-        </button>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
-        >
-          r/Devvit
-        </button>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
-        >
-          Discord
-        </button>
-      </footer>
+    <button
+      onClick={(e) => requestExpandedMode(e.nativeEvent, "game")}
+      className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-500"
+    >
+      {label}
+    </button>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col justify-center gap-3 bg-slate-950 p-5 text-slate-100">
+      {children}
     </div>
+  );
+}
+
+/** Inline feed card: a compact teaser that expands into the full webview. */
+export const Splash = () => {
+  const { data, loading } = useInit();
+
+  if (loading || !data) {
+    return (
+      <Shell>
+        <div className="text-sm text-slate-500">Loading Memex…</div>
+      </Shell>
+    );
+  }
+
+  if (data.view === "conclave" && data.conclave) {
+    const { conclave, tally, quorumSize, analysis } = data.conclave;
+    const resolved = conclave.closed ? conclave.resolution : undefined;
+    return (
+      <Shell>
+        <div className="flex items-center gap-2">
+          <Badge tone="orange">Conclave</Badge>
+          <span className="text-xs text-slate-400">
+            {resolved ? "resolved" : `${tally.total}/${quorumSize} votes`}
+          </span>
+        </div>
+        <h1 className="text-base font-semibold leading-snug text-slate-100">
+          Decision needed on a {conclave.targetKind} by u/{conclave.authorName}
+        </h1>
+        <p className="line-clamp-2 text-xs text-slate-400">
+          "{conclave.contentSnippet}"
+        </p>
+        {analysis.dominant && (
+          <p className="text-xs text-slate-400">
+            Team usually:{" "}
+            <span className={CHOICE_META[analysis.dominant].text}>
+              {CHOICE_META[analysis.dominant].label.toUpperCase()}
+            </span>{" "}
+            ({analysis.consistencyPct}% consistent, {analysis.consideredCount}{" "}
+            similar)
+          </p>
+        )}
+        <OpenButton label={resolved ? "View outcome" : "Open decision room"} />
+      </Shell>
+    );
+  }
+
+  const rb = data.rulebook;
+  return (
+    <Shell>
+      <div className="flex items-center gap-2">
+        <Badge tone="orange">Living Rulebook</Badge>
+        {rb?.semanticEnabled && <Badge tone="emerald">semantic</Badge>}
+      </div>
+      <h1 className="text-base font-semibold leading-snug text-slate-100">
+        Your team's institutional memory
+      </h1>
+      <p className="text-xs text-slate-400">
+        {rb?.precedentCount ?? 0} decisions recorded · {rb?.weekCount ?? 0} this
+        week · {rb?.openConclaves.length ?? 0} open conclaves
+      </p>
+      <OpenButton label="Open the Rulebook" />
+    </Shell>
   );
 };
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Splash />
-  </StrictMode>
+  </StrictMode>,
 );
