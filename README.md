@@ -20,6 +20,15 @@ door when a veteran mod leaves.
 - **Built on:** Devvit (Reddit Developer Platform), TypeScript, Redis
 - **Category:** New Mod Tool · Reddit Mod Tools & Migrated Apps Hackathon
 
+> **Roadmap — Devvit Web migration (in progress).** Devvit's Blocks renderer is
+> being retired (custom posts disabled June 30, 2026). A full migration of Memex
+> to the new Devvit Web platform (React + Hono, with an optional semantic-matching
+> layer) is already underway on the
+> [`devvit-web`](https://github.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/tree/devvit-web)
+> branch, and I plan to merge it into `main` after the hackathon winners are
+> announced (June 10, 2026). **This `main` branch is the Blocks version submitted
+> to the hackathon.**
+
 ## Demo
 
 <p align="center">
