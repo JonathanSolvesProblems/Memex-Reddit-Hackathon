@@ -4,7 +4,7 @@
 
 # Memex · institutional memory for mod teams
 
-![tests](https://img.shields.io/badge/tests-42_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-50_passing-brightgreen)
 ![built on](https://img.shields.io/badge/built_on-Devvit_Web-FF4500)
 ![stack](https://img.shields.io/badge/React_19-Hono-blue)
 ![semantic search](https://img.shields.io/badge/semantic_search-optional-8A2BE2)
@@ -21,12 +21,16 @@ door when a veteran mod leaves.
 - **Built on:** Devvit Web (Reddit Developer Platform) · React 19 · Tailwind · Hono · Redis · TypeScript
 - **Category:** New Mod Tool · Reddit Mod Tools & Migrated Apps Hackathon
 
-> **Migrated to Devvit Web.** Memex was first built on Devvit Blocks. Days before
-> the deadline I learned the Blocks custom-post renderer is being deprecated
-> (custom posts disabled June 30, 2026), so I migrated the entire app to the new
-> Devvit Web platform: a React 19 webview over a Hono server, with the whole
-> decision engine ported intact. The new server runtime also unlocked an
-> optional semantic-matching layer (see below).
+> **Migrated from Blocks to Devvit Web to stay compliant.** Memex was first built on
+> Devvit Blocks. Days before the deadline I learned the Blocks custom-post renderer is
+> being retired (custom posts disabled June 30, 2026), so rather than ship something
+> that would stop working, I rebuilt the entire app on the new Devvit Web platform: a
+> React 19 webview over a Hono server, with the whole decision engine ported intact.
+> This keeps Memex compliant and working past the Blocks sunset. The original Blocks
+> build is preserved on the
+> [`blocks-backup`](https://github.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/tree/blocks-backup)
+> branch for reference. The new server runtime also unlocked an optional
+> semantic-matching layer (see below).
 
 ## Demo
 
@@ -170,10 +174,11 @@ npm run build
 
 ## Status
 
-Core engine verified by **42 automated tests** (tokenization, link-domain
+Core engine verified by **50 automated tests** (tokenization, link-domain
 matching, similarity, Decision DNA retrieval incl. split detection and self-
 exclusion, the full Conclave vote → quorum → resolve → precedent pipeline,
-shadow-vote exclusion, settings parsing, auto-route rules, sweep flagging, and
-semantic cosine + blend rescaling) running against an in-memory Redis. TypeScript
+shadow-vote exclusion, settings parsing, embedding-provider detection, auto-route
+rules, sweep flagging, and semantic cosine + blend rescaling) running against an
+in-memory Redis. TypeScript
 type-check, ESLint (0 warnings), the Vite production build, and the full test
 suite are all green.
