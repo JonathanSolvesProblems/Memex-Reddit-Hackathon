@@ -30,15 +30,15 @@ door when a veteran mod leaves.
 
 ## Demo
 
-A Conclave decision room — Decision DNA, a live quorum vote, and the resolved outcome:
+**▶ [Watch the 1-minute demo](https://www.youtube.com/watch?v=ZqaUF6x8c44)** (Memex: Institutional Memory for Reddit Mod Teams).
 
-![Memex Conclave decision room](https://raw.githubusercontent.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/main/screenshots/conclave.png)
+A Conclave decision room (Decision DNA, a live quorum vote, and the resolved outcome):
 
-The Living Rulebook — impact stats, 14-day activity, outcome mix, and the phrase tester:
+[![Memex Conclave decision room](https://raw.githubusercontent.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/main/screenshots/conclave.png)](https://www.youtube.com/watch?v=ZqaUF6x8c44)
+
+The Living Rulebook (impact stats, 14-day activity, outcome mix, and the phrase tester):
 
 ![Memex Living Rulebook dashboard](https://raw.githubusercontent.com/JonathanSolvesProblems/Memex-Reddit-Hackathon/main/screenshots/rulebook.png)
-
-**1-minute demo video:** _add the YouTube link here once it's uploaded._
 
 ---
 
