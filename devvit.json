@@ -1,6 +1,9 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "memex-mod",
+  "marketingAssets": {
+    "icon": "assets/default-icon.png"
+  },
   "post": {
     "dir": "dist/client",
     "entrypoints": {
